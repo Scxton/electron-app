@@ -1,0 +1,101 @@
+import request from "../http/request";
+import { ElMessage } from 'element-plus';
+
+// 调试函数
+const logApiCall = (action, data, response) => {
+  console.group(`API Call: ${action}`);
+  console.log('Request:', data);
+  console.log('Response:', response);
+  console.groupEnd();
+};
+
+// 获取所有公司信息
+export function getAllCompanies() {
+  return request({
+    url: '/organizationInfo/queryAll',
+    method: 'get'
+  }).then(response => {
+    logApiCall('getAllCompanies', null, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - getAllCompanies:', error);
+    throw error;
+  });
+}
+
+// 根据ID获取公司信息
+export function getCompanyById(id) {
+  return request({
+    url: '/organizationInfo/queryById',
+    method: 'get',
+    params: { id }
+  }).then(response => {
+    logApiCall('getCompanyById', { id }, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - getCompanyById:', error);
+    throw error;
+  });
+}
+
+// 添加公司信息
+export function addCompany(data) {
+  // 转换为后端需要的格式
+  const apiData = {
+    organizationName: data.name,
+    organizationProjectCount: data.projectCount,
+    organizationProjectTotalCount: data.achievementCount,
+    tableStatus: true
+  };
+  
+  return request({
+    url: '/organizationInfo/add',
+    method: 'post',
+    data: apiData
+  }).then(response => {
+    logApiCall('addCompany', apiData, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - addCompany:', error);
+    throw error;
+  });
+}
+
+// 更新公司信息
+export function updateCompany(data) {
+  // 转换为后端需要的格式
+  const apiData = {
+    organizationId: data.id,
+    organizationName: data.name,
+    organizationProjectCount: data.projectCount,
+    organizationProjectTotalCount: data.achievementCount,
+    tableStatus: true
+  };
+  
+  return request({
+    url: '/organizationInfo/edit',
+    method: 'post',
+    data: apiData
+  }).then(response => {
+    logApiCall('updateCompany', apiData, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - updateCompany:', error);
+    throw error;
+  });
+}
+
+// 删除公司信息
+export function deleteCompany(id) {
+  return request({
+    url: '/organizationInfo/delete',
+    method: 'get',
+    params: { id }
+  }).then(response => {
+    logApiCall('deleteCompany', { id }, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - deleteCompany:', error);
+    throw error;
+  });
+}
