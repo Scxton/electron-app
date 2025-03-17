@@ -354,7 +354,7 @@ const handleSearch = async () => {
                 type: item.achievementCategory?.toLowerCase(),
                 author: item.userId,
                 project: item.projectId,
-                organization: item.achievementBelongingOrganization,
+                organization: item.organizationName,
                 description: item.achievementIntro,
                 uploadDate: item.uploadTime?.substring(0, 10) || '',
                 views: item.searchCount || 0
@@ -775,7 +775,7 @@ const processSearchResults = (response) => {
             type: item.achievementCategory?.toLowerCase(),
             author: item.userId,
             project: item.projectId,
-            organization: item.achievementBelongingOrganization,
+            organization: item.organizationName,
             description: item.achievementIntro,
             uploadDate: item.uploadTime?.substring(0, 10) || '',
             views: item.searchCount || 0,

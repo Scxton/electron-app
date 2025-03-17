@@ -23,3 +23,23 @@ export function loginTest(userName, password) {
         throw error;
     });
 }
+
+export function queryUserByName(userName, pageNum = 1, pageSize = 10) {
+    console.log('[API]Querying user by name:', userName); // Debug: Log username being queried
+    return request({
+        method: 'get',
+        url: 'userRolePermissions/queryByLike',
+        params: {
+            userName,
+            pageNum,
+            pageSize
+        },
+        mock: false
+    }).then(response => {
+        console.log('Query response received:', response);
+        return response;
+    }).catch(error => {
+        console.error('Query error:', error);
+        throw error;
+    });
+}

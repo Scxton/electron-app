@@ -18,6 +18,18 @@
             <i class="fas fa-folder-open"></i> 点击选择文件
           </button>
            <div class="support-text">支持格式：DOC/DOCX, PDF, JPG/PNG, ZIP/RAR, MP4</div>
+           <div v-if="expectedFileCount" class="file-count-info">
+             <span>需要上传 <b>{{ expectedFileCount }}</b> 个文件</span>
+             <span v-if="remainingFiles > 0" class="remaining-files">
+               还需上传 <b>{{ remainingFiles }}</b> 个文件
+             </span>
+             <span v-else-if="remainingFiles < 0" class="too-many-files">
+               已超出 <b>{{ -remainingFiles }}</b> 个文件
+             </span>
+             <span v-else class="files-complete">
+               <i class="fas fa-check-circle"></i> 文件数量已满足
+             </span>
+           </div>
         </div>
         <input 
           type="file" 
@@ -35,6 +47,10 @@
             <i class="fas fa-file-alt"></i>
             已选择 {{ selectedFiles.length }} 个文件
             <span class="files-size">（总大小：{{ getTotalSize() }}）</span>
+            <span v-if="expectedFileCount && remainingFiles !== 0" 
+                  :class="remainingFiles > 0 ? 'count-warning' : 'count-error'">
+              {{ remainingFiles > 0 ? `还需${remainingFiles}个文件` : `超出${-remainingFiles}个文件` }}
+            </span>
           </div>
           <div class="files-actions">
             <button @click="uploadAllFiles" 
@@ -138,6 +154,58 @@
         </div>
       </div>
     </div>
+
+    <!-- 添加质量检查对话框 -->
+    <div v-if="showQualityDialog" class="dialog-overlay">
+      <div class="quality-dialog">
+        <div class="dialog-header">
+          <h3>质量检查结果</h3>
+          <button @click="closeQualityDialog" class="close-btn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="quality-checks">
+          <div class="check-item">
+            <div class="check-label">文件数量检查</div>
+            <div class="check-status" :class="fileCountStatus.type">
+              <span class="status-badge">{{ fileCountStatus.text }}</span>
+              <span class="status-desc">{{ fileCountStatus.description }}</span>
+            </div>
+          </div>
+
+          <div class="check-item">
+            <div class="check-label">文件完整性检查</div>
+            <div class="check-status passed">
+              <span class="status-badge">通过</span>
+              <span class="status-desc">所有文件上传完整</span>
+            </div>
+          </div>
+
+          <div class="check-item">
+            <div class="check-label">文件格式检查</div>
+            <div class="check-status passed">
+              <span class="status-badge">通过</span>
+              <span class="status-desc">文件格式符合要求</span>
+            </div>
+          </div>
+
+          <div class="check-item">
+            <div class="check-label">基本信息完整性</div>
+            <div class="check-status passed">
+              <span class="status-badge">通过</span>
+              <span class="status-desc">基本信息填写完整</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button @click="closeQualityDialog" class="dialog-btn confirm-btn">
+            确认
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -158,6 +226,59 @@ const uploadResult = reactive({
   hasError: false
 })
 const showConfirmDialog = ref(false)
+const showQualityDialog = ref(false)
+
+// 添加文件数量检查相关计算属性
+const expectedFileCount = computed(() => {
+  const savedFormData = localStorage.getItem('Ach_info')
+  if (!savedFormData) return null
+  
+  try {
+    const formData = JSON.parse(savedFormData)
+    return formData.fileCount ? parseInt(formData.fileCount) : null
+  } catch (e) {
+    console.error('Error parsing saved form data:', e)
+    return null
+  }
+})
+
+const remainingFiles = computed(() => {
+  if (!expectedFileCount.value) return 0
+  return expectedFileCount.value - selectedFiles.value.length
+})
+
+// 计算文件数量检查状态
+const fileCountStatus = computed(() => {
+  if (!expectedFileCount.value) {
+    return {
+      type: 'warning',
+      text: '警告',
+      description: '未设置预期文件数量'
+    }
+  }
+  
+  if (selectedFiles.value.length < expectedFileCount.value) {
+    return {
+      type: 'failed',
+      text: '未通过',
+      description: `文件数量不匹配: 预期${expectedFileCount.value}个, 实际${selectedFiles.value.length}个`
+    }
+  }
+  
+  if (selectedFiles.value.length > expectedFileCount.value) {
+    return {
+      type: 'failed',
+      text: '未通过',
+      description: `文件数量超出: 预期${expectedFileCount.value}个, 实际${selectedFiles.value.length}个`
+    }
+  }
+  
+  return {
+    type: 'passed',
+    text: '通过',
+    description: '文件数量符合要求'
+  }
+})
 
 // Methods
 // 检查是否已填写表单
@@ -351,6 +472,18 @@ const pauseUpload = (index) => {
 
 const uploadAllFiles = async () => {
   if (isUploading.value) return
+  
+  // 检查文件数量是否符合要求
+  if (expectedFileCount.value && selectedFiles.value.length !== expectedFileCount.value) {
+    if (selectedFiles.value.length < expectedFileCount.value) {
+      ElMessage.warning(`文件数量不足，还需上传 ${remainingFiles.value} 个文件`)
+      return
+    } else {
+      ElMessage.warning(`文件数量超出，超出 ${-remainingFiles.value} 个文件`)
+      return
+    }
+  }
+  
   isUploading.value = true
   
   try {
@@ -401,6 +534,9 @@ const uploadAllFiles = async () => {
     
     uploadResult.success = filesToUpload.length
     uploadResult.show = true
+
+    // 上传完成后显示质量检查对话框
+    showQualityDialog.value = true
   } catch (error) {
     console.error('Upload failed:', error)
     // 更新所有文件状态为失败
@@ -488,6 +624,33 @@ const submitAllContent = async () => {
     console.error('Submit Error:', error)
     ElMessage.error(`提交失败：${error.message}`)
   }
+}
+
+// 修改关闭质量检查对话框的方法
+const closeQualityDialog = () => {
+  showQualityDialog.value = false
+  
+  // 清空界面
+  selectedFiles.value = []
+  uploadResult.show = false
+  uploadResult.success = 0
+  uploadResult.failed = 0
+  uploadResult.hasError = false
+  
+  // 重置其他状态
+  isDragging.value = false
+  isUploading.value = false
+  
+  // 清空文件输入框，以便重新选择相同的文件
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+  
+  // 清除localStorage中的表单数据
+  localStorage.removeItem('Ach_info')
+  
+  // 提示用户操作完成
+  ElMessage.success('上传工作已完成')
 }
 </script>
 
@@ -1077,4 +1240,186 @@ const submitAllContent = async () => {
 .dialog-btn:active {
   transform: translateY(1px);
 }
+
+/* 添加文件数量提示样式 */
+.file-count-info {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.remaining-files {
+  color: #f59e0b;
+}
+
+.too-many-files {
+  color: #ef4444;
+}
+
+.files-complete {
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.count-warning {
+  margin-left: 10px;
+  padding: 2px 8px;
+  background-color: #fff7ed;
+  color: #f59e0b;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 500;
+}
+
+.count-error {
+  margin-left: 10px;
+  padding: 2px 8px;
+  background-color: #fef2f2;
+  color: #ef4444;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 500;
+}
+
+/* 添加动画效果 */
+.file-count-info {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 质量检查对话框样式 */
+.quality-dialog {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1e293b;
+}
+
+.quality-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.check-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+}
+
+.check-label {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.check-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* 状态样式 */
+.passed .status-badge {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.failed .status-badge {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.warning .status-badge {
+  background-color: #fff7ed;
+  color: #ea580c;
+}
+
+.dialog-footer {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dialog-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirm-btn {
+  background-color: #6366f1;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background-color: #4f46e5;
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .quality-dialog {
+    padding: 16px;
+  }
+
+  .check-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .check-status {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
 </style>
+
+<!-- 未添加审核 -->

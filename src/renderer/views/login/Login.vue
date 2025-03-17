@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { ruleName, rulePassword } from '../../api/validdata'
-import { loginTest } from '../../api/login'
+import { loginTest, queryUserByName } from '../../api/login'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { setToken } from "../../http/token"
@@ -20,23 +20,53 @@ const rules = ref({
 })
 
 const loginFormRef = ref(null)
+
+// Add new function for querying users
+const queryUser = async (username) => {
+  try {
+    console.log('Querying user:', username);
+    const response = await queryUserByName(username);
+    console.log('Query results:', response);
+    //将查询的respons中的userId保存下来
+    localStorage.setItem('userId', response[0].userId);
+    console.log('UserId saved to localStorage:', response[0].userId);
+    ElMessage({
+      message: '查询成功',
+      type: 'success'
+    });
+    return response;
+  } catch (error) {
+    ElMessage({
+      message: '查询失败',
+      type: 'error'
+    });
+    console.error('Error querying user:', error);
+  }
+}
+
+// Update submitForm to include query
 const submitForm = (loginFormRef) => {
   loginFormRef.validate(async (valid) => {
     if (valid) {
-      //console.log("loginForm = ", loginForm)
-      console.log('loginForm.userName = ', loginForm.userName)
-      console.log('loginForm.password = ', loginForm.password)
-       let token = await loginTest(loginForm.userName, loginForm.password)
-       setToken("token", token)
-       
-       // Store username in localStorage for access across components
-       localStorage.setItem('username', loginForm.userName)
-       
-      ElMessage({
-        message: '登录成功',
-        type: 'success'
-      })
-      router.push('/home')
+      try {
+        let token = await loginTest(loginForm.userName, loginForm.password)
+        setToken("token", token)
+        localStorage.setItem('username', loginForm.userName)
+        
+        // Query user information after successful login
+        await queryUser(loginForm.userName);
+        
+        ElMessage({
+          message: '登录成功',
+          type: 'success'
+        })
+        router.push('/home')
+      } catch (error) {
+        ElMessage({
+          message: '登录失败',
+          type: 'error'
+        })
+      }
     } else {
       alert('error submit!!!')
       return false

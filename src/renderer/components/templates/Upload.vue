@@ -22,9 +22,9 @@
           <el-input v-model="formData.templateName" placeholder="请输入模板名称"></el-input>
         </el-form-item>
 
-        <!-- 模板类型和ID -->
+        <!-- 模板类型和版本 -->
         <el-row :gutter="20">
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item label="模板类型" prop="templateType" required>
               <el-select v-model="formData.templateType" placeholder="请选择模板类型" class="w-100">
                 <el-option
@@ -37,18 +37,22 @@
             </el-form-item>
           </el-col>
           
-          <el-col :span="8">
-            <el-form-item label="模板ID" prop="templateId" required>
-              <el-input v-model="formData.templateId" placeholder="请输入模板ID"></el-input>
-            </el-form-item>
-          </el-col>
-
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item label="模板版本" prop="version" required>
               <el-input v-model="formData.version" placeholder="请输入版本号"></el-input>
             </el-form-item>
           </el-col>
         </el-row>
+
+        <!-- 模板简介 -->
+        <el-form-item label="模板简介" prop="templateIntro" required>
+          <el-input
+            v-model="formData.templateIntro"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入模板简介"
+          ></el-input>
+        </el-form-item>
 
         <!-- 文件上传区域 -->
         <el-form-item label="模板文件" prop="file" required>
@@ -90,8 +94,8 @@
       <div class="preview-content">
         <p><strong>模板名称：</strong>{{ formData.templateName }}</p>
         <p><strong>模板类型：</strong>{{ getTemplateTypeLabel(formData.templateType) }}</p>
-        <p><strong>模板ID:</strong>{{ formData.templateId }}</p>
         <p><strong>模板版本：</strong>{{ formData.version }}</p>
+        <p><strong>模板简介：</strong>{{ formData.templateIntro }}</p>
         <p><strong>上传文件：</strong>{{ uploadedFileName }}</p>
       </div>
       <template #footer>
@@ -108,7 +112,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Delete, UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload_template } from '../../api/upload'
+import { addTemplate, Upload_template } from '../../api/template'
 // 模板类型选项
 const templateTypes = [
   { label: '专利模板', value: 'patent' },
@@ -120,8 +124,8 @@ const templateTypes = [
 const formData = reactive({
   templateName: '',
   templateType: '',
-  templateId: '',
   version: '',
+  templateIntro: '',
   file: null
 })
 
@@ -143,11 +147,12 @@ const rules = {
   templateType: [
     { required: true, message: '请选择模板类型', trigger: 'change' }
   ],
-  templateId: [
-    { required: true, message: '请输入模板ID', trigger: 'blur' }
-  ],
   version: [
     { required: true, message: '请输入版本号', trigger: 'blur' }
+  ],
+  templateIntro: [
+    { required: true, message: '请输入模板简介', trigger: 'blur' },
+    { min: 10, max: 500, message: '简介长度应在 10 到 500 个字符之间', trigger: 'blur' }
   ],
   file: [
     { required: true, message: '请上传模板文件', trigger: 'change' }
@@ -173,22 +178,61 @@ const previewForm = async () => {
 
 // 确认上传
 const confirmUpload = async () => {
-  // 这里添加实际的上传逻辑
-   const formDataToUpload = new FormData()
-    formDataToUpload.append('file', formData.file) // 添加文件
-    formDataToUpload.append('templateName', formData.templateName) // 添加模板名称
-    formDataToUpload.append('templateType', formData.templateType) // 添加模板类型
-    formDataToUpload.append('templateId', formData.templateId) // 添加模板ID
-    formDataToUpload.append('version', formData.version) // 添加版本号
-   await Upload_template(formDataToUpload)
-    .then(() => {
-      ElMessage.success('模板上传成功')
-      previewDialogVisible.value = false
-    })
-    .catch(() => {
-      ElMessage.error('模板上传失败，请重试')
-    })
-  // 可以在这里添加上传后的处理逻辑
+  try {
+    console.log('开始上传模板，表单数据：', formData)
+    
+    // 首先上传文件
+    const fileFormData = new FormData()
+    fileFormData.append('file', formData.file)
+    
+    // 上传文件
+    const uploadResponse = await Upload_template(fileFormData)
+    console.log('文件上传响应：', uploadResponse)
+    
+    if (!uploadResponse) {
+      throw new Error(uploadResponse.message || '文件上传失败')
+    }
+    
+    // 获取文件存储路径
+    const templateStoragepath = uploadResponse || ''
+    
+    // 获取登录时存储的userId
+    const userId = parseInt(localStorage.getItem('userId'))
+    if (!userId) {
+      throw new Error('用户未登录或登录信息已失效')
+    }
+    console.log('userId = ', userId)
+    
+    // 创建要上传的模板数据对象
+    const templateData = {
+      templateName: formData.templateName,
+      templateType: formData.templateType,
+      templateId: '', // 使用时间戳作为模板ID
+      versionNumber: formData.version,
+      templateIntro: formData.templateIntro,
+      remarks: '',
+      uploadTime: new Date().toISOString(),
+      userId: userId, // 现在是整数类型
+      templateStoragepath: templateStoragepath,
+      tableStatus: true,
+      reviewStatus: false,
+      updateTime: new Date().toISOString()
+    }
+
+    console.log('准备发送的模板数据：', templateData)
+    
+    const response = await addTemplate(templateData)
+    console.log('模板数据添加响应：', response)
+    
+    ElMessage.success('模板上传成功')
+    previewDialogVisible.value = false
+    
+    // 清空表单
+    clearForm()
+  } catch (error) {
+    console.error('模板上传失败：', error)
+    ElMessage.error(`模板上传失败：${error.message || '请重试'}`)
+  }
 }
 
 // 添加上传组件的引用
@@ -210,8 +254,8 @@ const clearForm = () => {
       Object.assign(formData, {
         templateName: '',
         templateType: '',
-        templateId: '',
         version: '',
+        templateIntro: '',
         file: null
       })
       // 清除文件名
@@ -236,8 +280,8 @@ const saveDraft = () => {
   const draftData = {
     templateName: formData.templateName,
     templateType: formData.templateType,
-    templateId: formData.templateId,
     version: formData.version,
+    templateIntro: formData.templateIntro,
     // 保存文件名而不是文件对象
     fileName: uploadedFileName.value
   }
@@ -254,8 +298,8 @@ const loadDraft = () => {
     // 恢复表单数据
     formData.templateName = draftData.templateName
     formData.templateType = draftData.templateType
-    formData.templateId = draftData.templateId
     formData.version = draftData.version
+    formData.templateIntro = draftData.templateIntro
     // 恢复文件名
     uploadedFileName.value = draftData.fileName
   }
@@ -280,16 +324,41 @@ const formRef = ref(null)
 
 .form-container {
   background: white;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .section-title {
-  margin-bottom: 30px;
-  font-size: 24px;
+  margin-bottom: 40px;
+  font-size: 28px;
   font-weight: bold;
-  color: #303133;
+  color: #2c3e50;
+  text-align: center;
+  position: relative;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: #409EFF;
+  border-radius: 3px;
+}
+
+.el-form-item {
+  margin-bottom: 25px;
+}
+
+.el-button {
+  padding: 12px 24px;
+  font-weight: 500;
 }
 
 .w-100 {
@@ -352,22 +421,22 @@ const formRef = ref(null)
 }
 
 .upload-area {
-  width: 100%;
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: border-color .3s;
+  padding: 30px;
+  background: #fafafa;
+  border: 2px dashed #dcdfe6;
+  border-radius: 8px;
 }
 
 .upload-area:hover {
   border-color: #409EFF;
+  background: #f5f7fa;
 }
 
 .preview-content {
-  padding: 20px;
-  line-height: 1.8;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 25px;
+  line-height: 2;
 }
 
 .dialog-footer {

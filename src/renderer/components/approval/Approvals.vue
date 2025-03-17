@@ -6,7 +6,7 @@
           <el-table-column prop="Pid" label="投诉专利编号" width="180" />
           <el-table-column prop="user" label="投诉用户" />
           <el-table-column prop="type" label="投诉类型" />
-          <el-table-column prop="other" label="简介" />
+          <el-table-column prop="other" label="投诉详情" />
           <el-table-column prop="status" label="受理状态">
               <template #default="scope">
                   <el-tag :type="getStatusType(scope.row.status)">
@@ -89,7 +89,7 @@
 import { ref, onMounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMain, ElMessage, ElMessageBox } from 'element-plus';
-import { queryAllComplaints } from '../../api/patentComplaints';
+import { queryAllComplaints, updateComplaintStatus, deleteComplaint } from '../../api/patentComplaints';
 
 interface Complaint {
   id: string
@@ -109,12 +109,12 @@ const fetchComplaints = async () => {
     loading.value = true;
     const res = await queryAllComplaints();
     console.log(res);
-    if (res ) {
+    if (res) {
       tableData.value = res.map((item: any) => ({
         id: item.complaintId,
         Pid: item.intellectualPropertyId,
         user: item.userId,
-        type: item.complaintType,
+        type: getComplaintTypeText(item.complaintType),
         other: item.complaintIntro,
         status: item.complaintProcess
       }));
@@ -155,15 +155,73 @@ const getStatusType = (status: number) => {
   }
 };
 
+// 获取投诉类型文本
+const getComplaintTypeText = (type: string) => {
+  switch (type) {
+    case 'infringement':
+      return '侵权';
+    case 'false_information':
+      return '虚假信息';
+    case 'other':
+      return '其他';
+    default:
+      return '未知类型';
+  }
+};
+
 onMounted(() => {
   fetchComplaints();
 });
 
 const handleEdit = (index: number, row: Complaint) => {
-  console.log(index, row)
+  ElMessageBox.confirm('是否确认受理该投诉?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await updateComplaintStatus(row.id, row.status)
+      ElMessage({
+        type: 'success',
+        message: '受理成功'
+      })
+      // 刷新数据
+      await fetchComplaints()
+    } catch (error) {
+      console.error('受理失败:', error)
+      ElMessage.error('受理失败')
+    }
+  }).catch(() => {
+    ElMessage({
+      type: 'info',
+      message: '已取消受理'
+    })
+  })
 }
 const handleDelete = (index: number, row: Complaint) => {
-  console.log(index, row)
+  ElMessageBox.confirm('确认删除该投诉信息?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await deleteComplaint(row.id)
+      ElMessage({
+        type: 'success',
+        message: '删除成功'
+      })
+      // 刷新数据
+      await fetchComplaints()
+    } catch (error) {
+      console.error('删除失败:', error)
+      ElMessage.error('删除失败')
+    }
+  }).catch(() => {
+    ElMessage({
+      type: 'info',
+      message: '已取消删除'
+    })
+  })
 }
 
 const handleMore = (index: number, row: Complaint) => {

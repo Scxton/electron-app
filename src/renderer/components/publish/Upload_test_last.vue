@@ -141,361 +141,352 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
 import { addFile, addAchievement } from '../../api/upload'
 import { ElMessage } from 'element-plus'
 
-export default {
-  name: 'FileUpload',
-  data() {
-    return {
-      selectedFiles: [],
-      isDragging: false,
-      isUploading: false,
-      uploadResult: {
-        show: false,
-        success: 0,
-        failed: 0,
-        hasError: false
-      },
-      showConfirmDialog: false
+// State variables
+const fileInput = ref(null)
+const selectedFiles = ref([])
+const isDragging = ref(false)
+const isUploading = ref(false)
+const uploadResult = reactive({
+  show: false,
+  success: 0,
+  failed: 0,
+  hasError: false
+})
+const showConfirmDialog = ref(false)
+
+// Methods
+// 检查是否已填写表单
+const checkFormData = () => {
+  const savedFormData = localStorage.getItem('Ach_info')
+  if (!savedFormData) {
+    ElMessage.warning('请先返回上一步填写成果信息')
+    return false
+  }
+  return true
+}
+
+// 修改文件选择方法
+const triggerFileInput = () => {
+  if (!checkFormData()) return
+  fileInput.value.click()
+}
+
+const handleFileSelect = (event) => {
+  if (!checkFormData()) {
+    event.target.value = '' // 清空选择
+    return
+  }
+  const files = Array.from(event.target.files)
+  addFiles(files)
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const handleDrop = (event) => {
+  if (!checkFormData()) return
+  
+  isDragging.value = false
+  const files = Array.from(event.dataTransfer.files)
+  addFiles(files)
+}
+
+const addFiles = (files) => {
+  const invalidFiles = []
+  const validFiles = []
+  
+  files.forEach(file => {
+    if (checkFileType(file)) {
+      file.uploadStatus = ''
+      validFiles.push(file)
+    } else {
+      invalidFiles.push(file.name)
     }
-  },
-  methods: {
-    // 检查是否已填写表单
-    checkFormData() {
-      const savedFormData = localStorage.getItem('Ach_info')
-      if (!savedFormData) {
-        ElMessage.warning('请先返回上一步填写成果信息')
-        return false
-      }
-      return true
-    },
+  })
+  
+  if (invalidFiles.length > 0) {
+    ElMessage.warning({
+      message: `不支持的文件类型：${invalidFiles.join(', ')}\n支持类型：DOC/DOCX, PDF, JPG/PNG, ZIP/RAR, MP4`,
+      duration: 5000
+    })
+  }
+  
+  selectedFiles.value.push(...validFiles)
+}
+
+const checkFileType = (file) => {
+  const allowedTypes = ['doc', 'docx', 'pdf', 'jpg', 'jpeg', 'png', 'mp4', 'zip', 'rar']
+  const fileExtension = file.name.split('.').pop().toLowerCase()
+  return allowedTypes.includes(fileExtension)
+}
+
+const removeFile = (index) => {
+  selectedFiles.value.splice(index, 1)
+}
+
+const getStatusClass = (file) => {
+  if (file.uploadStatus?.includes('成功')) return 'status-success'
+  if (file.uploadStatus?.includes('失败')) return 'status-error'
+  if (file.uploadStatus?.includes('上传中')) return 'status-progress'
+  return ''
+}
+
+const getStatusIcon = (file) => {
+  if (file.uploadStatus?.includes('成功')) return 'fas fa-check-circle'
+  if (file.uploadStatus?.includes('失败')) return 'fas fa-times-circle'
+  if (file.uploadStatus?.includes('上传中')) return 'fas fa-spinner fa-spin'
+  return 'fas fa-info-circle'
+}
+
+const getFileIcon = (file) => {
+  const type = file.name.split('.').pop().toLowerCase()
+  const icons = {
+    pdf: 'fas fa-file-pdf',
+    doc: 'fas fa-file-word',
+    docx: 'fas fa-file-word',
+    jpg: 'fas fa-file-image',
+    jpeg: 'fas fa-file-image',
+    png: 'fas fa-file-image',
+    mp4: 'fas fa-file-video',
+    zip: 'fas fa-file-archive',
+    rar: 'fas fa-file-archive'
+  }
+  return icons[type] || 'fas fa-file'
+}
+
+const getFileType = (file) => {
+  const type = file.name.split('.').pop().toLowerCase()
+  const types = {
+    pdf: 'PDF文档',
+    doc: 'Word文档',
+    docx: 'Word文档',
+    jpg: '图片',
+    jpeg: '图片',
+    png: '图片',
+    mp4: '视频',
+    zip: '压缩包',
+    rar: '压缩包'
+  }
+  return types[type] || '未知类型'
+}
+
+const getProgressClass = (file) => {
+  if (file.uploadStatus === '上传成功') return 'progress-success'
+  if (file.uploadStatus === '上传失败') return 'progress-error'
+  return 'progress-active'
+}
+
+const startUpload = async (index) => {
+  const file = selectedFiles.value[index]
+  if (!file || file.uploading) return
+
+  try {
+    file.uploading = true
+    file.uploadStatus = '上传中'
+    file.progress = 0
+    // 获取表单数据
+    const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
+    if (!savedFormData) {
+      ElMessage.error('请先填写成果信息')
+      return
+    }
+
+    // 构建完整的表单对象
+    const achievementData = {
+      achievementName: savedFormData.title,
+      achievementCategory: savedFormData.type,
+      achievementVersion: savedFormData.version,
+      achievementIntro: savedFormData.description,
+      remarks: savedFormData.highlights,
+      achievementForm: savedFormData.fileCount.toString(),
+      achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
+      organizationName: savedFormData.achievementBelongingOrganization?.name || '',
+      projectId: savedFormData.projectId || 0,
+      userId: savedFormData.userId || 0,
+      templateId: savedFormData.templateId || 0,
+      auditFlag: 0,
+      subjectCategory: savedFormData.category,
+      technologyCategory: savedFormData.techType
+    }
+    console.log('formData achievementData', achievementData)
+    // 同时上传文件+表单数据
+    await addFile([file], achievementData)
+    console.log('上传成功')
+    file.progress = 100
+    file.uploadStatus = '上传成功'
     
-    // 修改文件选择方法
-    triggerFileInput() {
-      if (!this.checkFormData()) return
-      this.$refs.fileInput.click()
-    },
+    // 更新上传结果
+    uploadResult.success++
+    uploadResult.show = true
     
-    handleFileSelect(event) {
-      if (!this.checkFormData()) {
-        event.target.value = '' // 清空选择
-        return
-      }
-      const files = Array.from(event.target.files)
-      this.addFiles(files)
-    },
+    // 从列表中移除已上传的文件
+    selectedFiles.value = selectedFiles.value.filter((_, i) => i !== index)
+  } catch (error) {
+    console.error('Upload failed:', error)
+    file.uploadStatus = '上传失败'
+    file.progress = 0
     
-    formatFileSize(bytes) {
-      if (bytes === 0) return '0 Bytes'
-      const k = 1024
-      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-    },
+    uploadResult.failed++
+    uploadResult.hasError = true
+    uploadResult.show = true
+  } finally {
+    file.uploading = false
+  }
+}
+
+const pauseUpload = (index) => {
+  const file = selectedFiles.value[index]
+  file.uploading = false
+}
+
+const uploadAllFiles = async () => {
+  if (isUploading.value) return
+  isUploading.value = true
+  
+  try {
+    // 重置上传结果
+    uploadResult.show = false
+    uploadResult.success = 0
+    uploadResult.failed = 0
+    uploadResult.hasError = false
+
+    const filesToUpload = selectedFiles.value.filter(
+      file => !file.uploadStatus || file.uploadStatus === '上传失败'
+    )
+
+    // 获取表单数据
+    const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
+    if (!savedFormData) {
+      ElMessage.error('请先填写成果信息')
+      return
+    }
+
+    // 构建完整的表单对象
+    const achievementData = {
+      achievementName: savedFormData.title,
+      achievementCategory: savedFormData.type,
+      achievementVersion: savedFormData.version,
+      achievementIntro: savedFormData.description,
+      remarks: savedFormData.highlights,
+      achievementForm: savedFormData.fileCount.toString(),
+      achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
+      organizationName: savedFormData.achievementBelongingOrganization?.name || '',
+      projectId: savedFormData.projectId || 0,
+      userId: savedFormData.userId || 0,
+      templateId: savedFormData.templateId || 0,
+      auditFlag: 0,
+      subjectCategory: savedFormData.category,
+      technologyCategory: savedFormData.techType
+    }
+    console.log('formData achievementData', achievementData)
+    // 同时上传文件+表单数据
+    await addFile(filesToUpload, achievementData)
     
-    handleDrop(event) {
-      if (!this.checkFormData()) return
-      
-      this.isDragging = false
-      const files = Array.from(event.dataTransfer.files)
-      this.addFiles(files)
-    },
-
-    addFiles(files) {
-      const invalidFiles = []
-      const validFiles = []
-      
-      files.forEach(file => {
-        if (this.checkFileType(file)) {
-          file.uploadStatus = ''
-          validFiles.push(file)
-        } else {
-          invalidFiles.push(file.name)
-        }
-      })
-      
-      if (invalidFiles.length > 0) {
-        ElMessage.warning({
-          message: `不支持的文件类型：${invalidFiles.join(', ')}\n支持类型：DOC/DOCX, PDF, JPG/PNG, ZIP/RAR, MP4`,
-          duration: 5000
-        })
-      }
-      
-      this.selectedFiles.push(...validFiles)
-    },
-    
-    checkFileType(file) {
-      const allowedTypes = ['doc', 'docx', 'pdf', 'jpg', 'jpeg', 'png', 'mp4', 'zip', 'rar']
-      const fileExtension = file.name.split('.').pop().toLowerCase()
-      return allowedTypes.includes(fileExtension)
-    },
-
-    removeFile(index) {
-      this.selectedFiles.splice(index, 1)
-    },
-
-    getStatusClass(file) {
-      if (file.uploadStatus.includes('成功')) return 'status-success'
-      if (file.uploadStatus.includes('失败')) return 'status-error'
-      if (file.uploadStatus.includes('上传中')) return 'status-progress'
-      return ''
-    },
-
-    getStatusIcon(file) {
-      if (file.uploadStatus.includes('成功')) return 'fas fa-check-circle'
-      if (file.uploadStatus.includes('失败')) return 'fas fa-times-circle'
-      if (file.uploadStatus.includes('上传中')) return 'fas fa-spinner fa-spin'
-      return 'fas fa-info-circle'
-    },
-
-    getFileIcon(file) {
-      const type = file.name.split('.').pop().toLowerCase()
-      const icons = {
-        pdf: 'fas fa-file-pdf',
-        doc: 'fas fa-file-word',
-        docx: 'fas fa-file-word',
-        jpg: 'fas fa-file-image',
-        jpeg: 'fas fa-file-image',
-        png: 'fas fa-file-image',
-        mp4: 'fas fa-file-video',
-        zip: 'fas fa-file-archive',
-        rar: 'fas fa-file-archive'
-      }
-      return icons[type] || 'fas fa-file'
-    },
-
-    getFileType(file) {
-      const type = file.name.split('.').pop().toLowerCase()
-      const types = {
-        pdf: 'PDF文档',
-        doc: 'Word文档',
-        docx: 'Word文档',
-        jpg: '图片',
-        jpeg: '图片',
-        png: '图片',
-        mp4: '视频',
-        zip: '压缩包',
-        rar: '压缩包'
-      }
-      return types[type] || '未知类型'
-    },
-
-    getProgressClass(file) {
-      if (file.uploadStatus === '上传成功') return 'progress-success'
-      if (file.uploadStatus === '上传失败') return 'progress-error'
-      return 'progress-active'
-    },
-
-    async startUpload(index) {
-      const file = this.selectedFiles[index]
-      if (!file || file.uploading) return
-
-      try {
-        file.uploading = true
-        file.uploadStatus = '上传中'
-        file.progress = 0
-
-        // 获取表单数据
-        const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
-        if (!savedFormData) {
-          ElMessage.error('请先填写成果信息')
-          return
-        }
-
-        // 构建完整的表单对象
-        const achievementData = {
-          achievementName: savedFormData.title,
-          achievementCategory: savedFormData.type,
-          achievementVersion: savedFormData.version,
-          achievementIntro: savedFormData.description,
-          remarks: savedFormData.highlights,
-          achievementForm: savedFormData.fileCount.toString(),
-          achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
-          organizationName: savedFormData.achievementBelongingOrganization?.name || '',
-          projectId: savedFormData.projectId || 0,
-          userId: savedFormData.userId || 0,
-          templateId: savedFormData.templateId || 0,
-          auditFlag: 0,
-          subjectCategory: savedFormData.category,
-          technologyCategory: savedFormData.techType
-        }
-        console.log('formData achievementData',achievementData)
-        // 同时上传文件+表单数据
-        await addFile([file], achievementData)
-        console.log('上传成功')
-        file.progress = 100
-        file.uploadStatus = '上传成功'
-        
-        // 更新上传结果
-        this.uploadResult.success++
-        this.uploadResult.show = true
-        
-        // 从列表中移除已上传的文件
-        this.selectedFiles = this.selectedFiles.filter((_, i) => i !== index)
-      } catch (error) {
-        console.error('Upload failed:', error)
-        file.uploadStatus = '上传失败'
-        file.progress = 0
-        
-        this.uploadResult.failed++
-        this.uploadResult.hasError = true
-        this.uploadResult.show = true
-      } finally {
-        file.uploading = false
-      }
-    },
-
-    pauseUpload(index) {
-      const file = this.selectedFiles[index]
+    // 更新所有文件状态为成功
+    filesToUpload.forEach(file => {
+      file.progress = 100
+      file.uploadStatus = '上传成功'
       file.uploading = false
-    },
+    })
+    
+    uploadResult.success = filesToUpload.length
+    uploadResult.show = true
+  } catch (error) {
+    console.error('Upload failed:', error)
+    // 更新所有文件状态为失败
+    filesToUpload.forEach(file => {
+      file.uploadStatus = '上传失败'
+      file.uploading = false
+    })
+    
+    uploadResult.failed = filesToUpload.length
+    uploadResult.hasError = true
+    uploadResult.show = true
+  }
 
-    async uploadAllFiles() {
-      if (this.isUploading) return
-      this.isUploading = true
-      
-      try {
-        // 重置上传结果
-        this.uploadResult = {
-          show: false,
-          success: 0,
-          failed: 0,
-          hasError: false
-        }
+  isUploading.value = false
+}
 
-        const filesToUpload = this.selectedFiles.filter(
-          file => !file.uploadStatus || file.uploadStatus === '上传失败'
-        )
+const getTotalSize = () => {
+  const totalBytes = selectedFiles.value.reduce((acc, file) => acc + file.size, 0)
+  return formatFileSize(totalBytes)
+}
 
-        // 获取表单数据
-        const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
-        if (!savedFormData) {
-          ElMessage.error('请先填写成果信息')
-          return
-        }
+const clearAllFiles = () => {
+  if (isUploading.value) return
+  showConfirmDialog.value = true
+}
 
-        // 构建完整的表单对象
-        const achievementData = {
-          achievementName: savedFormData.title,
-          achievementCategory: savedFormData.type,
-          achievementVersion: savedFormData.version,
-          achievementIntro: savedFormData.description,
-          remarks: savedFormData.highlights,
-          achievementForm: savedFormData.fileCount.toString(),
-          achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
-          organizationName: savedFormData.achievementBelongingOrganization?.name || '',
-          projectId: savedFormData.projectId || 0,
-          userId: savedFormData.userId || 0,
-          templateId: savedFormData.templateId || 0,
-          auditFlag: 0,
-          subjectCategory: savedFormData.category,
-          technologyCategory: savedFormData.techType
-        }
-        console.log('formData achievementData',achievementData)
-        // 同时上传文件+表单数据
-        await addFile(filesToUpload, achievementData)
-        
-        // 更新所有文件状态为成功
-        filesToUpload.forEach(file => {
-          file.progress = 100
-          file.uploadStatus = '上传成功'
-          file.uploading = false
-        })
-        
-        this.uploadResult.success = filesToUpload.length
-        this.uploadResult.show = true
-      } catch (error) {
-        console.error('Upload failed:', error)
-        // 更新所有文件状态为失败
-        filesToUpload.forEach(file => {
-          file.uploadStatus = '上传失败'
-          file.uploading = false
-        })
-        
-        this.uploadResult.failed = filesToUpload.length
-        this.uploadResult.hasError = true
-        this.uploadResult.show = true
-      }
+const cancelClear = () => {
+  showConfirmDialog.value = false
+}
 
-      this.isUploading = false
-    },
+const confirmClear = () => {
+  selectedFiles.value = []
+  uploadResult.show = false
+  uploadResult.success = 0
+  uploadResult.failed = 0
+  uploadResult.hasError = false
+  showConfirmDialog.value = false
+}
 
-    getTotalSize() {
-      const totalBytes = this.selectedFiles.reduce((acc, file) => acc + file.size, 0)
-      return this.formatFileSize(totalBytes)
-    },
+// 修改拖拽进入事件
+const handleDragEnter = (event) => {
+  event.preventDefault()
+  if (!checkFormData()) return
+  isDragging.value = true
+}
 
-    clearAllFiles() {
-      if (this.isUploading) return
-      this.showConfirmDialog = true
-    },
-
-    cancelClear() {
-      this.showConfirmDialog = false
-    },
-
-    confirmClear() {
-      this.selectedFiles = []
-      this.uploadResult = {
-        show: false,
-        success: 0,
-        failed: 0,
-        hasError: false
-      }
-      this.showConfirmDialog = false
-    },
-
-    // 修改拖拽进入事件
-    handleDragEnter(event) {
-      event.preventDefault()
-      if (!this.checkFormData()) return
-      this.isDragging = true
-    },
-
-    async submitAllContent() {
-      try {
-        // 获取之前保存的表单数据
-        const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
-        
-        if (!savedFormData) {
-          ElMessage.error('未找到成果信息，请返回上一步重新填写')
-          return
-        }
-
-        const achievementData = {
-          achievementName: savedFormData.title,
-          achievementCategory: savedFormData.type,
-          achievementVersion: savedFormData.version,
-          achievementIntro: savedFormData.description,
-          remarks: savedFormData.highlights,
-          achievementForm: savedFormData.fileCount.toString(),
-          achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
-          organizationName: savedFormData.achievementBelongingOrganization?.name || '',
-          projectId: savedFormData.projectId || 0,
-          userId: savedFormData.userId || 0,
-          templateId: savedFormData.templateId || 0,
-          auditFlag: 0,
-          subjectCategory: savedFormData.category,
-          technologyCategory: savedFormData.techType
-        }
-        console.log('achievementData.userId:', achievementData.userId)
-
-        const response = await addAchievement(achievementData)
-        
-        if (response === 1 || (response && response.code === 200)) {
-          ElMessage.success('成果信息提交成功')
-          // 清除localStorage中的临时数据
-          localStorage.removeItem('Ach_info')
-        } else {
-          throw new Error(response?.message || '提交失败')
-        }
-      } catch (error) {
-        console.error('Submit Error:', error)
-        ElMessage.error(`提交失败：${error.message}`)
-      }
+const submitAllContent = async () => {
+  try {
+    // 获取之前保存的表单数据
+    const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
+    
+    if (!savedFormData) {
+      ElMessage.error('未找到成果信息，请返回上一步重新填写')
+      return
     }
+
+    const achievementData = {
+      achievementName: savedFormData.title,
+      achievementCategory: savedFormData.type,
+      achievementVersion: savedFormData.version,
+      achievementIntro: savedFormData.description,
+      remarks: savedFormData.highlights,
+      achievementForm: savedFormData.fileCount.toString(),
+      achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
+      organizationName: savedFormData.achievementBelongingOrganization?.name || '',
+      projectId: savedFormData.projectId || 0,
+      userId: savedFormData.userId || 0,
+      templateId: savedFormData.templateId || 0,
+      auditFlag: 0,
+      subjectCategory: savedFormData.category,
+      technologyCategory: savedFormData.techType
+    }
+    console.log('achievementData.userId:', achievementData.userId)
+
+    const response = await addAchievement(achievementData)
+    
+    if (response === 1 || (response && response.code === 200)) {
+      ElMessage.success('成果信息提交成功')
+      // 清除localStorage中的临时数据
+      localStorage.removeItem('Ach_info')
+    } else {
+      throw new Error(response?.message || '提交失败')
+    }
+  } catch (error) {
+    console.error('Submit Error:', error)
+    ElMessage.error(`提交失败：${error.message}`)
   }
 }
 </script>
@@ -1087,4 +1078,5 @@ export default {
   transform: translateY(1px);
 }
 </style>
-<!-- 功能正常，尝试改为vue3 -->
+
+<!-- 未添加审核 -->

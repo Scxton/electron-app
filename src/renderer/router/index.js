@@ -48,19 +48,6 @@ const routes = [
         component: () => import('@renderer/components/publish/Upload_test.vue')
       },
       {
-        path: '/publish/template',
-        name: '模板选择',
-        iconClass: 'fa fa-upload',
-        component: () => import('@renderer/components/publish/Template_choice.vue')
-      },
-      //质量检查
-      {
-        path: '/publish/qualityCheck',
-        name: '质量检查',
-        iconClass: 'fa fa-check-circle',
-        component: () => import('@renderer/components/publish/QualityCheck.vue')
-      },
-      {
         path: '/publish/review',
         name: '成果审核',
         iconClass: 'fa fa-review',
@@ -170,65 +157,65 @@ const routes = [
     ]
   },
 
-  {
-    path: '/propertyService',
-    name: '产权服务',
-    iconClass: 'fa fa-bar-chart',
-    component: () => import('@renderer/views/home/Home.vue'),
-    children: [
-      {
-        path: '/home/propertyService1',
-        name: '投诉信息',
-        iconClass: 'fa fa-line-chart',
-        component: () => import('@renderer/components/propertyService/Complaint.vue')
-      },
-      {
-        path: '/home/propertyService2',
-        name: '受理情况',
-        iconClass: 'fa fa-line-chart',
-        component: () => import('@renderer/components/propertyService/Manual.vue')
-      },
-      {
-        path: '/home/propertyService3',
-        name: '产权信息',
-        iconClass: 'fa fa-line-chart',
-        component: () => import('@renderer/components/propertyService/Properties.vue')
-      }]
-  },
+  // {
+  //   path: '/propertyService',
+  //   name: '产权服务',
+  //   iconClass: 'fa fa-bar-chart',
+  //   component: () => import('@renderer/views/home/Home.vue'),
+  //   children: [
+  //     {
+  //       path: '/home/propertyService1',
+  //       name: '投诉信息',
+  //       iconClass: 'fa fa-line-chart',
+  //       component: () => import('@renderer/components/propertyService/Complaint.vue')
+  //     },
+  //     {
+  //       path: '/home/propertyService2',
+  //       name: '受理情况',
+  //       iconClass: 'fa fa-line-chart',
+  //       component: () => import('@renderer/components/propertyService/Manual.vue')
+  //     },
+  //     {
+  //       path: '/home/propertyService3',
+  //       name: '产权信息',
+  //       iconClass: 'fa fa-line-chart',
+  //       component: () => import('@renderer/components/propertyService/Properties.vue')
+  //     }]
+  // },
   {
     path: '/achievements',
-    name: '成果信息-2',
+    name: '成果管理',
     iconClass: 'fa fa-wrench',
     component: () => import('@renderer/views/home/Home.vue'),
     children: [
       {
         path: '/home/achievements',
-        name: '成果信息-1',
+        name: '成果信息表',
         iconClass: 'fa fa-wrench',
         component: () => import('@renderer/components/achievements/AchieveInfo.vue')
       }]
   },
   {
     path: '/approval',
-    name: '审批管理',
+    name: '投诉管理',
     iconClass: 'fa fa-user',
     component: () => import('@renderer/views/home/Home.vue'),
     children: [{
       path: '/home/approval',
-      name: '成果审批',
+      name: '投诉信息',
       iconClass: 'fa fa-user',
       component: () => import('@renderer/components/approval/Approvals.vue')
     }]
   },
   {
     path: '/users',
-    name: '用户中心',
+    name: '产权服务',
     iconClass: 'fa fa-user',
     component: () => import('@renderer/views/home/Home.vue'),
     children: [
       {
         path: '/home/user',
-        name: '权限管理',
+        name: '知识产权信息',
         iconClass: 'fa fa-user',
         component: () => import('@renderer/components/users/User.vue')
       },

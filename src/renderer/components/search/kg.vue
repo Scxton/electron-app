@@ -201,11 +201,11 @@ function initRelationFilters() {
 function getRelationColor(relation) {
   const colorMap = {
     '所属类别': '#FF5722',
-    '归档形式': '#2196F3',
-    '所属知识产权类型': '#9C27B0',
-    '拥有': '#4CAF50',
-    '包含': '#FFC107',
-    '创建': '#607D8B'
+    '技术分类': '#2196F3',
+    '学科分类': '#9C27B0',
+    '组织连接': '#4CAF50',
+    '项目连接': '#FFC107',
+    '作者连接': '#607D8B'
   };
   
   return colorMap[relation] || '#999';

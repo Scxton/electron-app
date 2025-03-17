@@ -42,3 +42,40 @@ export function queryAllComplaints() {
       throw error
   })
 }
+
+// 更新投诉状态
+export const updateComplaintStatus = (complaintId, status) => {
+  console.log('[API]开始更新投诉状态:', { complaintId, status })
+  return request({
+    url: `/patentComplaints/complaintId`,
+    method: 'get',
+    params: {
+      complaintId,
+      status
+    }
+  }).then(response => {
+    console.log('[API]状态更新响应:', response)
+    return response
+  }).catch(error => {
+    console.error('[API]状态更新失败:', error)
+    throw error
+  })
+}
+
+// 删除投诉
+export const deleteComplaint = (complaintId) => {
+  console.log('[API]开始删除投诉:', complaintId)
+  return request({
+    url: '/patentComplaints/deleteById',
+    method: 'get',
+    params: {
+      complaintId
+    }
+  }).then(response => {
+    console.log('[API]删除投诉响应:', response)
+    return response
+  }).catch(error => {
+    console.error('[API]删除投诉失败:', error)
+    throw error
+  })
+}
