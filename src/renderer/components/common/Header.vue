@@ -81,10 +81,15 @@ const handleLogout = () => {
 
 
 const confirmLogout = () => {
-  logoutTest()
+  // 从本地存储获取用户信息
+  const userId = localStorage.getItem('userId');
+  const userName = localStorage.getItem('username');
+  
+  logoutTest(userId, userName)
     .then(() => {
-      // Clear username from localStorage on logout
+      // 清除本地存储的用户信息
       localStorage.removeItem('username');
+      localStorage.removeItem('userId');
       ElMessage.success('注销成功');
       router.push('/login');
     })

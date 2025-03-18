@@ -10,7 +10,7 @@ const fs = require('fs')
 const path = require('path')
 const { net } = require('electron')
 
-// 处理文件下载请求
+// 处理文件下载请求 
 
 function createWindow() {
     // server.listen(PORT, () => {
@@ -20,6 +20,7 @@ function createWindow() {
     const mainWindow = new BrowserWindow({
         width: 900,
         height: 670,
+        
         show: false,
         icon,
         webPreferences: {
@@ -30,6 +31,8 @@ function createWindow() {
             devTools: true
         }
     })
+    //隐藏菜单栏
+    mainWindow.setMenu(null)
 
     mainWindow.on('ready-to-show', () => {
         mainWindow.show()
