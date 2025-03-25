@@ -16,17 +16,12 @@
             <div class="info-item">
               <i class="el-icon-collection-tag"></i>
               <span class="label">类别：</span>
-              <span>{{ achievement.category }}</span>
+              <span>{{ achievement.category === 'patent' ? '专利' : achievement.category === 'paper' ? '论文' : achievement.category }}</span>
             </div>
             <div class="info-item">
               <i class="el-icon-office-building"></i>
               <span class="label">来源单位：</span>
               <span>{{ achievement.organization }}</span>
-            </div>
-            <div class="info-item">
-              <i class="el-icon-user"></i>
-              <span class="label">负责人：</span>
-              <span>{{ achievement.leader }}</span>
             </div>
             <div class="info-item">
               <i class="el-icon-date"></i>
@@ -163,21 +158,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 右侧相关推荐 -->
-      <div class="related-content">
-        <h2>相关推荐</h2>
-        <div 
-          v-for="item in relatedAchievements" 
-          :key="item.id" 
-          class="related-item"
-          @click="navigateToAchievement(item.id)"
-        >
-          <h3>{{ item.title }}</h3>
-          <el-rate v-model="item.rating" disabled />
-          <p>{{ item.description }}</p>
-        </div>
-      </div>
     </div>
 
     <!-- 新讨论对话框 -->
@@ -242,6 +222,7 @@ import {
   queryInteractionEvaluationList
 } from '../../api/interaction'
 import { submitComplaint } from '../../api/patentComplaints'
+import { addLog } from '../../api/log'
 
 const router = useRouter()
 const route = useRoute()
@@ -262,7 +243,6 @@ const achievement = ref({
   title: '',
   category: '',
   organization: '',
-  leader: '',
   publishDate: '',
   views: 0,
   rating: 0,
@@ -279,25 +259,19 @@ const isEditingReview = ref(false)
 const discussions = ref([
   {
     id: 1,
-    title: '关于模型训练的问题',
-    author: '陈工程师',
-    date: '2024-03-15',
-    content: '请问训练这个模型需要多少样本数据？硬件配置有什么要求吗？'
+    title: '理论来源探讨',
+    author: '12345',
+    date: '2025-03-15',
+    content: '理论依据是什么？'
   },
   {
     id: 2,
-    title: '部署环境说明',
-    author: '技术支持小王',
-    date: '2024-03-15',
-    content: '建议使用RTX3060以上显卡，内存至少8GB。系统支持Windows和Linux环境。'
+    title: '是否可拓展',
+    author: '11111',
+    date: '2025-03-15',
+    content: '理论是否能拓展到前端'
   },
-  {
-    id: 3,
-    title: '关于算法优化的讨论',
-    author: '研发主管',
-    date: '2024-03-14',
-    content: '我们在实际应用中发现，通过调整批处理大小可以显著提升处理速度。'
-  }
+
 ])
 
 const relatedAchievements = ref([
@@ -480,12 +454,11 @@ const fetchData = async () => {
       achievement.value = {
         title: parsedData.title || '',
         category: parsedData.type || '',
-        organization: parsedData.organization || '',
-        leader: parsedData.author || '',
+        organization: 'cetc32',
         publishDate: parsedData.uploadDate || '',
         views: parsedData.views || 0,
-        rating: 4.5, // 默认值，实际应用中应从API获取
-        reviewCount: 0, // 默认值，实际应用中应从API获取
+        rating: 4.5,
+        reviewCount: 0,
         description: parsedData.description || ''
       }
       
@@ -534,6 +507,26 @@ const goBack = () => {
   router.back()
 }
 
+// 添加日志记录函数
+const logAction = async (action) => {
+  try {
+    const userId = localStorage.getItem('userId') || '1'
+    const today = new Date()
+    const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    
+    const logData = {
+      userId: userId,
+      logIntro: action,
+      logTime: formattedDate,
+      tableStatus: true
+    }
+    
+    await addLog(logData)
+  } catch (error) {
+    console.error('记录日志失败:', error)
+  }
+}
+
 // 提交新评价或更新评价
 const submitReview = async () => {
   if (!newReview.value.rating || !newReview.value.content) {
@@ -576,7 +569,7 @@ const submitReview = async () => {
       response = await updateInteractionEvaluation(reviewData)
       console.log('更新评价响应:', response)
       
-      if (response === 1 || (response.data && response.data.code === 200)) {
+      if (response ) {
         ElMessage.success('评价更新成功')
         console.log('评价更新成功:', response)
       }
@@ -586,7 +579,7 @@ const submitReview = async () => {
       response = await addInteractionEvaluation(reviewData)
       console.log('添加评价响应:', response)
       
-      if (response === 1 || (response.data && response.data.code === 200)) {
+      if (response ) {
         ElMessage.success('评价发布成功')
         console.log('评价发布成功:', response)
       }
@@ -594,9 +587,10 @@ const submitReview = async () => {
     
     // 重新获取评价数据和平均评分
     await fetchReviews(achievementId)
-    await fetchAverageRating(achievementId)
+    // await fetchAverageRating(achievementId)
     await checkUserHasReviewed(achievementId)
     
+    await logAction(isEditingReview.value ? `更新评价：${achievement.value.title}` : `添加评价：${achievement.value.title}`)
   } catch (error) {
     console.error('提交评价失败:', error)
     ElMessage.error('提交评价失败: ' + (error.message || '未知错误'))
@@ -632,6 +626,8 @@ const submitDiscussion = () => {
   newDiscussion.value = { title: '', content: '' }
   isDiscussionDialogVisible.value = false
   ElMessage.success('讨论发布成功')
+
+  logAction(`发起讨论：${newDiscussion.value.title}`)
 }
 
 // 添加路由跳转方法
@@ -669,6 +665,8 @@ const downloadAchievement = async () => {
     } else {
       ElMessage.error('获取文件名失败，无法下载')
     }
+
+    await logAction(`下载成果：${achievement.value.title}`)
   } catch (error) {
     console.error('下载成果失败:', error)
     ElMessage.error('下载失败: ' + (error.message || '未知错误'))
@@ -744,6 +742,8 @@ const submitComplaintForm = async () => {
       console.error('投诉提交失败:', response)
       ElMessage.error('投诉提交失败')
     }
+
+    await logAction(`提交投诉：${achievement.value.title}`)
   } catch (error) {
     console.error('提交投诉失败:', error)
     console.error('错误详情:', {

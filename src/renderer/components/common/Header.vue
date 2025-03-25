@@ -50,7 +50,7 @@ const getUserInfo = async () => {
   try {
     // First check if username is in localStorage
     const storedUsername = localStorage.getItem('username');
-
+    
     console.log('storedUsername', storedUsername);
     if (storedUsername) {
       username.value = storedUsername;
@@ -65,6 +65,7 @@ const getUserInfo = async () => {
       // Store for future use
       localStorage.setItem('username', response.data.username);
     }
+    console.log('username11111111111111:', username.value);
   } catch (error) {
     console.error('获取用户信息失败:', error);
   }
@@ -84,7 +85,8 @@ const confirmLogout = () => {
   // 从本地存储获取用户信息
   const userId = localStorage.getItem('userId');
   const userName = localStorage.getItem('username');
-  
+  console.log('userId222222222222:', userId);
+  console.log('userName22222222222:', userName);
   logoutTest(userId, userName)
     .then(() => {
       // 清除本地存储的用户信息

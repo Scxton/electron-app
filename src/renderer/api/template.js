@@ -1,5 +1,7 @@
 import request from "../http/request";
-
+import fileDownload from 'js-file-download'
+import axios from 'axios'
+import { getToken } from '../http/token'
 //查询所有模板数据
 export function queryAll() {
     return request({
@@ -63,5 +65,51 @@ export function Upload_template(formData) {
             'Content-Type': 'multipart/form-data'
         }
     })
+}
+
+// 提交下载表单
+export function submitDownload(templateId, userId) {
+  console.log('【api】提交模板下载表单，参数：', { templateId, userId });
+  
+  return request({
+    url: '/template/downloadPage',
+    method: 'post',
+    params: {
+      templateId,
+      userId
+    }
+  }).then(response => {
+    console.log('【api】模板下载表单提交成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】模板下载表单提交失败：', error);
+    throw error;
+  });
+}
+
+// 下载模板文件
+export function downloadTemplateFile(fileName) {
+  console.log('【api】开始下载模板文件，文件名：', fileName);
+  
+  return axios({
+    url: 'http://localhost:8082/template/download',
+    method: 'post',
+    params: {
+      fileName: fileName
+    },
+    responseType: 'blob',
+    headers: {
+      'Accept': 'application/octet-stream',
+      'Authorization': "Bearer " + getToken('token')
+    },
+    timeout: 60000
+  }).then(response => {
+    fileDownload(response.data, fileName);
+    console.log('【API】Template file download successful:', fileName);
+    return response.data;
+  }).catch(error => {
+    console.error('【API】Template download failed:', error);
+    throw error;
+  });
 }
 

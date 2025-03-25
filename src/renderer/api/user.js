@@ -1,5 +1,6 @@
 import service from "../http/service.js";
 import { getToken, removeToken } from "../utils/setToken.js"
+import request from "../http/request";
 //查询所有用户
 export function initUsers(root, userName, nick_name, user_name) {
     service.get("/system/user/getAllUsers", {
@@ -283,4 +284,37 @@ export function editUserInfo(root, userInfo, username) {
     }).catch(error => {
         throw error
     })
+    
 }
+
+
+// 获取系统当前在线用户
+export function getOnlineUserCount() {
+    return request({
+      url: '/DataStatistic/onlineUser',
+      method: 'get'
+    })
+  }
+  
+  // 根据用户名获取登录时间
+  export function getLoginTimeByUsername(username) {
+    return request({
+      url: '/DataStatistic/getLogInTimeByUsername',
+      method: 'get',
+      params: { userName: username }
+    }).then(response => {
+      console.log('Backend response:', response);
+      return response;
+    });
+  }
+
+  export function getOnlineDuration(username) {
+    return request({
+      url: '/DataStatistic/onlineUserDuration',
+      method: 'get',
+      params: { userName: username }
+    }).then(response => {
+      console.log('Backend response:', response);
+      return response;
+    });
+  }

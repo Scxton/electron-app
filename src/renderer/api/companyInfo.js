@@ -42,9 +42,14 @@ export function getCompanyById(id) {
 export function addCompany(data) {
   // 转换为后端需要的格式
   const apiData = {
+    organizationId: data.id,
     organizationName: data.name,
     organizationProjectCount: data.projectCount,
     organizationProjectTotalCount: data.achievementCount,
+    organizationAddress: data.address,
+    organizationPhone: data.phone,
+    contactsName:data.contactName,
+    contactsPhone:data.contactPhone,
     tableStatus: true
   };
   
@@ -69,6 +74,10 @@ export function updateCompany(data) {
     organizationName: data.name,
     organizationProjectCount: data.projectCount,
     organizationProjectTotalCount: data.achievementCount,
+    organizationAddress: data.address,
+    organizationPhone: data.phone,
+    contactsName:data.contactName,
+    contactsPhone:data.contactPhone,
     tableStatus: true
   };
   
@@ -99,3 +108,16 @@ export function deleteCompany(id) {
     throw error;
   });
 }
+export function fuzzySearchAchievements(searchBody) {
+
+  console.log('[API] 发送模糊搜索请求:', {
+    url: '/achievementTable/fuzzyQuery',
+    searchBody: searchBody
+  })
+  return request({
+    url: '/achievementTable/fuzzyQuery',
+    method: 'post',
+    data: searchBody
+  })
+}
+    

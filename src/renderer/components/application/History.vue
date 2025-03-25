@@ -39,7 +39,7 @@
       
       <el-col :span="4">
         <el-select v-model="fileStatus" placeholder="文件状态" clearable>
-          <el-option label="全部" value="" />
+          <el-option label="下载状态" value="" />
           <el-option label="下载成功" value="completed" />
           <el-option label="下载失败" value="error" />
           <el-option label="已过期" value="expired" />
@@ -48,8 +48,8 @@
       
       <el-col :span="4">
         <el-select v-model="fileType" placeholder="文件类型" clearable>
-          <el-option label="全部" value="" />
-          <el-option label="PDF文档" value="pdf" />
+          <el-option label="文件类型" value="" />
+          <el-option label="文档" value="pdf" />
           <el-option label="图片" value="image" />
           <el-option label="压缩包" value="zip" />
           <el-option label="其他" value="other" />
@@ -74,7 +74,6 @@
       <el-table-column prop="fileName" label="文件名称" sortable />
       <el-table-column prop="downloadTime" label="下载时间" sortable />
       <el-table-column prop="fileSize" label="文件大小" />
-      <el-table-column prop="downloadDuration" label="下载用时" />
       <el-table-column label="状态" align="center">
         <template #default="scope">
           <el-tag 
@@ -129,24 +128,21 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const downloadHistory = ref([
   {
     fileName: '研究报告2024.pdf',
-    downloadTime: '2024-11-22 15:30',
-    fileSize: '1.2GB',
-    downloadDuration: '2分钟',
+    downloadTime: '2025-02-21 15:30',
+    fileSize: '4.5MB',
     status: 'completed'
   },
   {
-    fileName: '专利文档.zip',
-    downloadTime: '2024-11-21 09:15',
+    fileName: '评估软件.zip',
+    downloadTime: '2025-02-22 09:15',
     fileSize: '500MB',
-    downloadDuration: '1分钟',
     status: 'error'
   },
   {
-    fileName: '数据集.csv',
-    downloadTime: '2024-11-20 14:22',
-    fileSize: '2.5GB',
-    downloadDuration: '5分钟',
-    status: 'expired'
+    fileName: '专利模板.word',
+    downloadTime: '2025-02-26 14:22',
+    fileSize: '2.5MB',
+    status: 'completed'
   }
 ])
 

@@ -27,6 +27,20 @@
             <el-table-column prop="intellectualPropertyType" label="产权类型" width="150" />
             <el-table-column prop="organizationName" label="所属单位" width="150" />
             <el-table-column prop="renewalStatus" label="产权状态" width="150">
+                <template #header>
+                    <el-dropdown @command="handleStatusFilter">
+                        <span class="el-dropdown-link">
+                            产权状态<el-icon class="el-icon--right"><arrow-down /></el-icon>
+                        </span>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item command="all">全部</el-dropdown-item>
+                                <el-dropdown-item command="normal">正常</el-dropdown-item>
+                                <el-dropdown-item command="expired">过期</el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
+                </template>
                 <template #default="scope">
                     <span :class="['status-tag', scope.row.renewalStatus ? 'status-normal' : 'status-expired']">
                         {{ scope.row.renewalStatus ? '正常' : '过期' }}
@@ -52,7 +66,7 @@
         <!-- 分页 -->
         <div style="margin-top: 30px;">
             <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
-                @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[2, 8, 15]"
+                @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[10, 15, 20]"
                 layout="total, sizes, prev, pager, next, jumper" :total="total">
             </el-pagination>
         </div>
@@ -142,15 +156,16 @@
 </template>
 
 <script setup>
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus, ArrowDown } from '@element-plus/icons-vue'
 import { ref, onMounted, computed } from 'vue'
 import { queryAll, queryAllWithPagination, addProperty, editProperty, deleteProperty as apiDeleteProperty } from "../../api/properties"
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { addLog } from '../../api/log'
 
 const tableData = ref([])   //产权信息列表
 const total = ref(0)   //产权总数
 const currentPage = ref(1)  // 当前页码
-const pageSize = ref(2)  // 每页数量（可通过下拉框选择）
+const pageSize = ref(10)  // 每页数量（可通过下拉框选择）
 
 //进入页面后，获取产权总数，获取第一页数据
 onMounted(async () => {
@@ -159,14 +174,32 @@ onMounted(async () => {
     fetchData()
 })
 
-// 分页获取数据
+// 添加状态筛选相关的变量和方法
+const currentStatusFilter = ref('all');
+
+// 修改 fetchData 方法
 const fetchData = async () => {
     try {
-        tableData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
+        const allData = await queryAll();
+        // 根据状态筛选
+        let filteredData = allData;
+        if (currentStatusFilter.value === 'normal') {
+            filteredData = allData.filter(item => item.renewalStatus === true);
+        } else if (currentStatusFilter.value === 'expired') {
+            filteredData = allData.filter(item => item.renewalStatus === false);
+        }
+        
+        // 更新总数
+        total.value = filteredData.length;
+        
+        // 手动进行分页
+        const start = (currentPage.value - 1) * pageSize.value;
+        const end = start + pageSize.value;
+        tableData.value = filteredData.slice(start, end);
     } catch (error) {
-        console.error('Error fetching data: ', error)
+        console.error('Error fetching data: ', error);
     }
-}
+};
 
 const handlePageSizeChange = (newSize) => {
     currentPage.value = 1
@@ -271,10 +304,24 @@ const saveProperty = async () => {
             // 调用添加API
             await addProperty(formData);
             ElMessage.success('添加产权信息成功');
+            // 添加日志
+            await addLog({
+                userId: localStorage.getItem('userId'),
+                logIntro: `添加产权信息：${propertyForm.value.intellectualName}`,
+                logTime: new Date().toISOString().split('T')[0],
+                tableStatus: true
+            });
         } else {
             // 调用编辑API
             await editProperty(formData);
             ElMessage.success('编辑产权信息成功');
+            // 添加日志
+            await addLog({
+                userId: localStorage.getItem('userId'),
+                logIntro: `编辑产权信息：${propertyForm.value.intellectualName}`,
+                logTime: new Date().toISOString().split('T')[0],
+                tableStatus: true
+            });
         }
         propertyDialogVisible.value = false;
         // 刷新表格数据
@@ -301,6 +348,13 @@ const deleteProperty = (row) => {
         try {
             await apiDeleteProperty(row.intellectualPropertyId);
             ElMessage.success('删除成功');
+            // 添加日志
+            await addLog({
+                userId: localStorage.getItem('userId'),
+                logIntro: `删除产权信息：${row.intellectualName}`,
+                logTime: new Date().toISOString().split('T')[0],
+                tableStatus: true
+            });
             // 刷新表格数据
             initTableData();
         } catch (error) {
@@ -337,6 +391,13 @@ const confirmRenew = async () => {
         // 调用编辑API
         await editProperty(updateData);
         ElMessage.success('续期成功');
+        // 添加日志
+        await addLog({
+            userId: localStorage.getItem('userId'),
+            logIntro: `续期产权信息：${selectedProperty.value.intellectualName}`,
+            logTime: new Date().toISOString().split('T')[0],
+            tableStatus: true
+        });
         renewDialogVisible.value = false;
         
         // 刷新表格数据
@@ -344,6 +405,13 @@ const confirmRenew = async () => {
     } catch (error) {
         ElMessage.error(`续期失败: ${error.message}`);
     }
+};
+
+// 添加状态筛选处理方法
+const handleStatusFilter = (command) => {
+    currentStatusFilter.value = command;
+    currentPage.value = 1; // 重置页码
+    fetchData();
 };
 </script>
 
@@ -490,6 +558,18 @@ const confirmRenew = async () => {
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
+}
+
+/* 添加下拉菜单样式 */
+.el-dropdown-link {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: #606266;
+}
+
+.el-dropdown-link:hover {
+    color: #409EFF;
 }
 </style>
 

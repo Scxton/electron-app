@@ -40,31 +40,6 @@ export function getUnauditedAchievements(pageNum = 1, pageSize = 10) {
   })
 }
 
-// export function downloadAuditFile(fileName) {
-//   console.log('【API】Downloading audit file:', fileName)
-//   return request({
-//     url: '/achievement/downloadtoAudit',
-//     method: 'post',
-//     params: { fileName },
-//     responseType: 'blob',  // 确保设置响应类型为blob
-//     headers: {
-//       // 'Accept': 'application/octet-stream'  // 添加Accept头
-//       'Content-Type': 'application/x-www-form-urlencoded'
-//     }
-//   }).then(response => {
-//     console.log('【API】Audit file download response:', response)
-//     fileDownload(response.data.data, fileName)
-//     console.log('【API】Audit file download successful:', fileName)
-
-//   }).catch(error => {
-//     console.error('【API】Error downloading audit file:', error)
-//     throw error
-//   })
-// }
-
-
-
-
 export function downloadAuditFile(fileName) {
   console.log('【API】Downloading audit file:', fileName)
   axios({
@@ -85,5 +60,37 @@ export function downloadAuditFile(fileName) {
     return response.data
   }, error => {
     console.log('错误', error.message)
+  })
+}
+
+export function getAllApprovalRecords() {
+  console.log('【API】Fetching all approval records')
+  return request({
+    url: '/approvalRecords/queryAll',
+    method: 'get'
+  }).then(response => {
+    console.log('【API】All approval records response:', response)
+    return response
+  }).catch(error => {
+    console.error('【API】Error fetching all approval records:', error)
+    throw error
+  })
+}
+
+export function getAllApprovalRecordsWithPagination(pageNum = 1, pageSize = 10) {
+  console.log('【API】Fetching all approval records with pagination - Page:', pageNum, 'Size:', pageSize)
+  return request({
+    url: '/approvalRecords/queryAllWithPagination',
+    method: 'get',
+    params: {
+      pageNum,
+      pageSize
+    }
+  }).then(response => {
+    console.log('【API】All approval records with pagination response:', response)
+    return response
+  }).catch(error => {
+    console.error('【API】Error fetching all approval records with pagination:', error)
+    throw error
   })
 }

@@ -9,34 +9,20 @@
       <el-card v-for="work in pendingWorks" :key="work.id" class="work-card">
         <div class="work-header">
           <h3>{{ work.achievementName }}</h3>
-          <span class="submission-time">提交时间: {{ formatDate(work.uploadTime) }}</span>
+          <span class="submission-time">提交时间: 2025-03-21</span>
         </div>
         <div class="work-info">
-          <p>提交人: {{ work.userId }}</p>
-          <p>类型: {{ work.achievementCategory }}</p>
+          <p>提交人: {{ work.userName }}</p>
+          <p>类型: {{ 
+            work.achievementCategory === 'paper' ? '论文' :
+            work.achievementCategory === 'patent' ? '专利' :
+            work.achievementCategory === 'project' ? '项目' :
+            work.achievementCategory
+          }}</p>
         </div>
         <div class="work-actions">
           <el-button type="primary" @click="downloadWork(work)">下载查看</el-button>
           <el-button type="success" @click="showReviewDialog(work)">审核</el-button>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- 已审核成果区域 -->
-    <div class="section reviewed-section">
-      <h2>已审核成果</h2>
-      <el-empty v-if="!reviewedWorks.length" description="暂无已审核成果" />
-      <el-card v-for="work in reviewedWorks" :key="work.id" class="work-card">
-        <div class="work-header">
-          <h3>{{ work.title }}</h3>
-          <el-tag :type="work.status === 'approved' ? 'success' : 'danger'">
-            {{ work.status === 'approved' ? '已通过' : '未通过' }}
-          </el-tag>
-        </div>
-        <div class="work-info">
-          <p>提交人: {{ work.author }}</p>
-          <p>审核时间: {{ work.reviewTime }}</p>
-          <p>审核意见: {{ work.comment }}</p>
         </div>
       </el-card>
     </div>
@@ -78,15 +64,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getPendingWorks, submitAudit ,getUnauditedAchievements,downloadAuditFile} from '../../api/review'
+import { getPendingWorks, submitAudit ,getUnauditedAchievements,downloadAuditFile, getAllApprovalRecords } from '../../api/review'
+import { addLog } from '../../api/log'
 
 
 // 待审核成果列表
 const pendingWorks = ref([])
 const pendingdLoading = ref(true)
 const pendingError = ref(null)
-// 已审核成果列表
-const reviewedWorks = ref([])
 // 审核对话框显示状态
 const reviewDialogVisible = ref(false)
 // 当前审核的成果
@@ -151,17 +136,6 @@ onMounted(async () => {
   fetchUnauditedAchievements()
 })
 
-
-// 格式化日期
-const formatDate = (date) => {
-  if (!date) return ''
-  const d = new Date(date)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 // 下载成果
 const downloadWork = async (work) => {
   try {
@@ -174,7 +148,13 @@ const downloadWork = async (work) => {
   
     const response = await downloadAuditFile(work.approvalType)
     
-   
+    // 添加下载日志
+    await addLog({
+      userId: localStorage.getItem('userId'),
+      logIntro: `下载成果：${work.achievementName}`,
+      logTime: new Date().toISOString().split('T')[0],
+      tableStatus: true
+    })
 
     ElMessage.success('下载成功')
   } catch (error) {
@@ -207,62 +187,35 @@ const submitReview = async () => {
   }
 
   try {
-    // 根据审核结果设置 operationId（0-通过，3-不通过）
     const operationId = reviewForm.value.status === 'approved' ? 0 : 3
     const approvalId = currentWork.value.approvalId
-    console.log('提交审核ID:', operationId, approvalId)
-
-    // 添加详细的调试日志
-    console.log('准备提交审核:', {
-      currentWork: currentWork.value,
-      operationId,
-      approvalId,
-      status: reviewForm.value.status,
-      comment: reviewForm.value.comment
-    })
 
     if (!approvalId) {
       throw new Error('缺少审核记录ID(approvalId)')
     }
 
     const response = await submitAudit(operationId, approvalId)
-    console.log('审核提交响应:', response)
-    console.log('审核提交响应:', response.code)
+    
+    // 添加审核日志
+    await addLog({
+      userId: localStorage.getItem('userId'),
+      logIntro: `审核成果：${currentWork.value.achievementName}（${reviewForm.value.status === 'approved' ? '通过' : '不通过'}）`,
+      logTime: new Date().toISOString().split('T')[0],
+      tableStatus: true
+    })
 
     if (response) {
-      // 将审核过的成果添加到已审核列表
-      const reviewedWork = {
-        id: currentWork.value.achievementId,
-        title: currentWork.value.approvalType,
-        author: currentWork.value.userId,
-        status: reviewForm.value.status,
-        comment: reviewForm.value.comment,
-        reviewTime: new Date().toLocaleString()
-      }
-      console.log('添加到已审核列表:', reviewedWork)
-      reviewedWorks.value.unshift(reviewedWork)
-
-      // 从待审核列表中移除
-      console.log('从待审核列表移除ID:', currentWork.value.id)
       pendingWorks.value = pendingWorks.value.filter(
         work => work.id !== currentWork.value.id
       )
-
       reviewDialogVisible.value = false
       ElMessage.success(response.message || '审核提交成功')
-      
-      // 刷新待审核列表
       await fetchUnauditedAchievements()
     } else {
       throw new Error(response.message || '审核提交失败')
     }
   } catch (error) {
     console.error('审核提交失败:', error)
-    console.error('错误详情:', {
-      message: error.message,
-      stack: error.stack,
-      response: error.response
-    })
     ElMessage.error(`审核提交失败: ${error.message}`)
   }
 }

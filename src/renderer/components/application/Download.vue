@@ -172,9 +172,9 @@ import {
 const downloadTasks = ref([
   {
     id: 1,
-    fileName: '项目设计文档.pdf',
+    fileName: '计算中间件.pdf',
     fileType: 'PDF文档',
-    fileSize: 125.4 * 1024 * 1024, // 125.4 MB
+    fileSize: 4.5 * 1024 * 1024, // 125.4 MB
     status: 'error',
     downloadedSize: 56.4 * 1024 * 1024,
     totalSize: 125.4 * 1024 * 1024,
@@ -182,9 +182,9 @@ const downloadTasks = ref([
   },
   {
     id: 2,
-    fileName: '软件安装包.exe',
-    fileType: '可执行文件',
-    fileSize: 1.2 * 1024 * 1024 * 1024, // 1.2 GB
+    fileName: '监控软件.zip',
+    fileType: '压缩包',
+    fileSize: 1.2 * 1024 * 1024, // 1.2 GB
     status: 'downloading',
     downloadedSize: 900 * 1024 * 1024,
     totalSize: 1.2 * 1024 * 1024 * 1024,
@@ -194,7 +194,7 @@ const downloadTasks = ref([
     id: 3,
     fileName: '演示视频.mp4',
     fileType: '视频文件',
-    fileSize: 4.5 * 1024 * 1024 * 1024, // 4.5 GB
+    fileSize: 125.4 * 1024 * 1024, // 4.5 GB
     status: 'error',
     downloadedSize: 675 * 1024 * 1024,
     totalSize: 4.5 * 1024 * 1024 * 1024,
@@ -202,9 +202,9 @@ const downloadTasks = ref([
   },
   {
     id: 4,
-    fileName: '数据备份.zip',
-    fileType: '压缩文件',
-    fileSize: 850 * 1024 * 1024, // 850 MB
+    fileName: '通信中间件.zip',
+    fileType: '压缩包',
+    fileSize: 80 * 1024 * 1024, // 850 MB
     status: 'paused',
     downloadedSize: 0,
     totalSize: 850 * 1024 * 1024

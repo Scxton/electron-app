@@ -113,8 +113,6 @@ import { ref, reactive, onMounted } from 'vue'
 import { Delete, UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { addTemplate, Upload_template } from '../../api/template'
-import { addLog } from '../../api/log'
-
 // 模板类型选项
 const templateTypes = [
   { label: '专利模板', value: 'patent' },
@@ -195,13 +193,17 @@ const confirmUpload = async () => {
       throw new Error(uploadResponse.message || '文件上传失败')
     }
     
+    // 获取文件存储路径
     const templateStoragepath = uploadResponse || ''
+    
+    // 获取登录时存储的userId
     const userId = parseInt(localStorage.getItem('userId'))
     if (!userId) {
       throw new Error('用户未登录或登录信息已失效')
     }
     console.log('userId = ', userId)
     
+    // 创建要上传的模板数据对象
     const templateData = {
       templateName: formData.templateName,
       templateType: formData.templateType,
@@ -221,15 +223,6 @@ const confirmUpload = async () => {
     
     const response = await addTemplate(templateData)
     console.log('模板数据添加响应：', response)
-    
-    // Add logging for template upload
-    const currentDate = new Date().toISOString().split('T')[0]
-    await addLog({
-      userId: userId,
-      logIntro: '上传了新的模板：' + formData.templateName,
-      logTime: currentDate,
-      tableStatus: true
-    })
     
     ElMessage.success('模板上传成功')
     previewDialogVisible.value = false
@@ -256,7 +249,7 @@ const clearForm = () => {
       type: 'warning',
     }
   )
-    .then(async () => {
+    .then(() => {
       // 重置表单数据
       Object.assign(formData, {
         templateName: '',
@@ -273,19 +266,6 @@ const clearForm = () => {
       }
       // 清除本地存储
       localStorage.removeItem('draftFormData')
-      
-      // Add logging for form clear
-      const userId = parseInt(localStorage.getItem('userId'))
-      if (userId) {
-        const currentDate = new Date().toISOString().split('T')[0]
-        await addLog({
-          userId: userId,
-          logIntro: '清除了模板上传表单',
-          logTime: currentDate,
-          tableStatus: true
-        })
-      }
-      
       ElMessage.success('已清除所有信息')
     })
     .catch(() => {
@@ -295,30 +275,18 @@ const clearForm = () => {
 }
 
 // 保存草稿
-const saveDraft = async () => {
+const saveDraft = () => {
   // 创建不包含文件对象的数据副本
   const draftData = {
     templateName: formData.templateName,
     templateType: formData.templateType,
     version: formData.version,
     templateIntro: formData.templateIntro,
+    // 保存文件名而不是文件对象
     fileName: uploadedFileName.value
   }
   
   localStorage.setItem('draftFormData', JSON.stringify(draftData))
-  
-  // Add logging for draft save
-  const userId = parseInt(localStorage.getItem('userId'))
-  if (userId) {
-    const currentDate = new Date().toISOString().split('T')[0]
-    await addLog({
-      userId: userId,
-      logIntro: '保存了模板草稿：' + formData.templateName,
-      logTime: currentDate,
-      tableStatus: true
-    })
-  }
-  
   ElMessage.success('草稿已保存，您可以稍后继续编辑')
 }
 

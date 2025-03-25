@@ -1,13 +1,113 @@
 <template>
   <el-col :span="24">
+      <!-- Add statistics cards -->
+      <el-row :gutter="20" class="statistics-row">
+          <el-col :span="4">
+              <el-card shadow="hover" class="statistics-card">
+                  <div class="statistics-content">
+                      <div class="statistics-title">总投诉数</div>
+                      <div class="statistics-number total">{{ totalComplaints }}</div>
+                  </div>
+              </el-card>
+          </el-col>
+          <el-col :span="4">
+              <el-card shadow="hover" class="statistics-card">
+                  <div class="statistics-content">
+                      <div class="statistics-title infringement">侵权投诉</div>
+                      <div class="statistics-number infringement">{{ infringementCount }}</div>
+                  </div>
+              </el-card>
+          </el-col>
+          <el-col :span="4">
+              <el-card shadow="hover" class="statistics-card">
+                  <div class="statistics-content">
+                      <div class="statistics-title false-info">虚假信息</div>
+                      <div class="statistics-number false-info">{{ falseInfoCount }}</div>
+                  </div>
+              </el-card>
+          </el-col>
+          <el-col :span="4">
+              <el-card shadow="hover" class="statistics-card">
+                  <div class="statistics-content">
+                      <div class="statistics-title other">其他投诉</div>
+                      <div class="statistics-number other">{{ otherCount }}</div>
+                  </div>
+              </el-card>
+          </el-col>
+      </el-row>
+
+      <!-- Status statistics -->
+      <el-row :gutter="20" class="statistics-row">
+          <el-col :span="4">
+              <el-card shadow="hover" class="statistics-card">
+                  <div class="statistics-content">
+                      <div class="statistics-title pending">未受理</div>
+                      <div class="statistics-number pending">{{ pendingCount }}</div>
+                  </div>
+              </el-card>
+          </el-col>
+          <el-col :span="4">
+              <el-card shadow="hover" class="statistics-card">
+                  <div class="statistics-content">
+                      <div class="statistics-title processing">受理中</div>
+                      <div class="statistics-number processing">{{ processingCount }}</div>
+                  </div>
+              </el-card>
+          </el-col>
+          <el-col :span="4">
+              <el-card shadow="hover" class="statistics-card">
+                  <div class="statistics-content">
+                      <div class="statistics-title completed">已完成</div>
+                      <div class="statistics-number completed">{{ completedCount }}</div>
+                  </div>
+              </el-card>
+          </el-col>
+      </el-row>
+
       <el-table :data="tableData" style="width: 100%" border
           :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
           <el-table-column prop="id" label="案件编号" width="180" />
           <el-table-column prop="Pid" label="投诉专利编号" width="180" />
           <el-table-column prop="user" label="投诉用户" />
-          <el-table-column prop="type" label="投诉类型" />
+          <el-table-column prop="type" label="投诉类型">
+              <template #header>
+                  <el-dropdown @command="handleTypeFilter">
+                      <span class="el-dropdown-link">
+                          投诉类型<el-icon class="el-icon--right"><arrow-down /></el-icon>
+                      </span>
+                      <template #dropdown>
+                          <el-dropdown-menu>
+                              <el-dropdown-item command="all">全部</el-dropdown-item>
+                              <el-dropdown-item command="infringement">侵权</el-dropdown-item>
+                              <el-dropdown-item command="false_information">虚假信息</el-dropdown-item>
+                              <el-dropdown-item command="other">其他</el-dropdown-item>
+                          </el-dropdown-menu>
+                      </template>
+                  </el-dropdown>
+              </template>
+              <template #default="scope">
+                  <el-tag :type="getTypeTagType(scope.row.type)">
+                      {{ scope.row.type }}
+                  </el-tag>
+              </template>
+          </el-table-column>
           <el-table-column prop="other" label="投诉详情" />
           <el-table-column prop="status" label="受理状态">
+              <template #header>
+                  <el-dropdown @command="handleStatusFilter">
+                      <span class="el-dropdown-link">
+                          受理状态<el-icon class="el-icon--right"><arrow-down /></el-icon>
+                      </span>
+                      <template #dropdown>
+                          <el-dropdown-menu>
+                              <el-dropdown-item command="all">全部</el-dropdown-item>
+                              <el-dropdown-item command="0">未受理</el-dropdown-item>
+                              <el-dropdown-item command="1">受理中</el-dropdown-item>
+                              <el-dropdown-item command="2">已完成</el-dropdown-item>
+                          </el-dropdown-menu>
+                      </template>
+                  </el-dropdown>
+              </template>
               <template #default="scope">
                   <el-tag :type="getStatusType(scope.row.status)">
                       {{ getStatusText(scope.row.status) }}
@@ -86,8 +186,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { ref, onMounted, computed } from 'vue'
+import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMain, ElMessage, ElMessageBox } from 'element-plus';
 import { queryAllComplaints, updateComplaintStatus, deleteComplaint } from '../../api/patentComplaints';
 
@@ -102,6 +202,9 @@ interface Complaint {
 
 const tableData = ref<Complaint[]>([]);
 const loading = ref(true);
+const allComplaints = ref<Complaint[]>([]);
+const selectedType = ref('all');
+const selectedStatus = ref('all');
 
 // 获取所有投诉信息
 const fetchComplaints = async () => {
@@ -110,7 +213,7 @@ const fetchComplaints = async () => {
     const res = await queryAllComplaints();
     console.log(res);
     if (res) {
-      tableData.value = res.map((item: any) => ({
+      const mappedData = res.map((item: any) => ({
         id: item.complaintId,
         Pid: item.intellectualPropertyId,
         user: item.userId,
@@ -118,6 +221,8 @@ const fetchComplaints = async () => {
         other: item.complaintIntro,
         status: item.complaintProcess
       }));
+      allComplaints.value = mappedData;
+      tableData.value = mappedData;
     }
   } catch (error) {
     console.error('获取投诉信息失败:', error);
@@ -294,6 +399,94 @@ const cancelAdd = () => {
   console.log('取消')
 }
 
+const handleTypeFilter = (command: string) => {
+  selectedType.value = command;
+  let filteredData = [...allComplaints.value];
+  
+  // First apply type filter
+  if (command !== 'all') {
+    filteredData = filteredData.filter(item => {
+      const complaintType = Object.entries(getComplaintTypeMap()).find(([_, value]) => value === item.type)?.[0];
+      return complaintType === command;
+    });
+  }
+  
+  // Then apply status filter if active
+  if (selectedStatus.value !== 'all') {
+    filteredData = filteredData.filter(item => item.status === parseInt(selectedStatus.value));
+  }
+  
+  tableData.value = filteredData;
+};
+
+const handleStatusFilter = (command: string) => {
+  selectedStatus.value = command;
+  let filteredData = [...allComplaints.value];
+  
+  // First apply type filter if active
+  if (selectedType.value !== 'all') {
+    filteredData = filteredData.filter(item => {
+      const complaintType = Object.entries(getComplaintTypeMap()).find(([_, value]) => value === item.type)?.[0];
+      return complaintType === selectedType.value;
+    });
+  }
+  
+  // Then apply status filter
+  if (command !== 'all') {
+    filteredData = filteredData.filter(item => item.status === parseInt(command));
+  }
+  
+  tableData.value = filteredData;
+};
+
+const getComplaintTypeMap = () => ({
+  'infringement': '侵权',
+  'false_information': '虚假信息',
+  'other': '其他'
+});
+
+// Add computed properties for statistics
+const totalComplaints = computed(() => allComplaints.value.length);
+
+const infringementCount = computed(() => 
+  allComplaints.value.filter(complaint => complaint.type === '侵权').length
+);
+
+const falseInfoCount = computed(() => 
+  allComplaints.value.filter(complaint => complaint.type === '虚假信息').length
+);
+
+const otherCount = computed(() => 
+  allComplaints.value.filter(complaint => complaint.type === '其他').length
+);
+
+// Add new function to get type tag color
+const getTypeTagType = (type: string) => {
+  switch (type) {
+    case '侵权':
+      return 'danger';
+    case '虚假信息':
+      return 'warning';
+    case '其他':
+      return 'info';
+    default:
+      return '';
+  }
+};
+
+// Add computed properties for status statistics
+const pendingCount = computed(() => 
+  allComplaints.value.filter(complaint => complaint.status === 0).length
+);
+
+const processingCount = computed(() => 
+  allComplaints.value.filter(complaint => complaint.status === 1).length
+);
+
+const completedCount = computed(() => 
+  allComplaints.value.filter(complaint => complaint.status === 2).length
+);
+
 </script>
 
 <style>
@@ -333,5 +526,100 @@ const cancelAdd = () => {
   width: 100%;
   box-sizing: border-box;
   /* 确保自适应 */
+}
+
+.el-dropdown-link {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Add new styles */
+.statistics-row {
+  margin-bottom: 20px;
+}
+
+.statistics-card {
+  height: 120px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: #ffffff;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.statistics-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
+}
+
+.statistics-content {
+  text-align: center;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+
+.statistics-title {
+  font-size: 16px;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.statistics-number {
+  font-size: 32px;
+  font-weight: bold;
+  font-family: 'Arial', sans-serif;
+}
+
+/* Type statistics colors */
+.statistics-title.total,
+.statistics-number.total {
+  color: #303133;
+}
+
+.statistics-title.infringement,
+.statistics-number.infringement {
+  color: #F56C6C;
+}
+
+.statistics-title.false-info,
+.statistics-number.false-info {
+  color: #E6A23C;
+}
+
+.statistics-title.other,
+.statistics-number.other {
+  color: #909399;
+}
+
+/* Status statistics colors */
+.statistics-title.pending,
+.statistics-number.pending {
+  color: #909399;
+}
+
+.statistics-title.processing,
+.statistics-number.processing {
+  color: #E6A23C;
+}
+
+.statistics-title.completed,
+.statistics-number.completed {
+  color: #67C23A;
+}
+
+/* Add spacing between statistics rows */
+.statistics-row + .statistics-row {
+  margin-top: 30px;
+}
+
+/* Add responsive padding */
+@media screen and (min-width: 768px) {
+  .statistics-row {
+    padding: 0 20px;
+  }
 }
 </style>

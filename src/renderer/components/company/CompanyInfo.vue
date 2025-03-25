@@ -1,15 +1,15 @@
 <template>
   <div class="company-container">
     <div class="header">
-      <h1>公司信息管理</h1>
-      <el-button type="primary" @click="showAddDialog">添加公司</el-button>
+      <h1>单位信息管理</h1>
+      <el-button type="primary" @click="showAddDialog">添加单位</el-button>
     </div>
 
     <!-- 搜索栏 -->
     <div class="search-bar">
       <el-input
         v-model="searchQuery"
-        placeholder="搜索公司名称"
+        placeholder="搜索单位名称"
         clearable
         @clear="handleSearch"
         @input="handleSearch"
@@ -29,10 +29,14 @@
       style="width: 100%"
       class="company-table"
     >
-      <el-table-column prop="id" label="公司ID" width="100" />
-      <el-table-column prop="name" label="公司名称" />
-      <el-table-column prop="projectCount" label="项目数" width="120" />
-      <el-table-column prop="achievementCount" label="成果数" width="120" />
+      <el-table-column prop="id" label="单位ID" width="100" />
+      <el-table-column prop="name" label="单位名称" />
+      <el-table-column prop="address" label="单位地址" />
+      <el-table-column prop="phone" label="单位电话" width="120" />
+      <el-table-column prop="contactName" label="联系人" width="120" />
+      <el-table-column prop="contactPhone" label="联系人电话" width="120" />
+      <el-table-column prop="projectCount" label="项目数" width="100" />
+      <el-table-column prop="achievementCount" label="成果数" width="100" />
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="scope">
           <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
@@ -81,8 +85,8 @@
     <!-- 添加/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="dialogType === 'add' ? '添加公司' : '编辑公司'"
-      width="500px"
+      :title="dialogType === 'add' ? '添加单位' : '编辑单位'"
+      width="600px"
     >
       <el-form
         ref="companyFormRef"
@@ -90,14 +94,20 @@
         :rules="rules"
         label-width="100px"
       >
-        <el-form-item label="公司名称" prop="name">
-          <el-input v-model="companyForm.name" placeholder="请输入公司名称" />
+        <el-form-item label="单位名称" prop="name">
+          <el-input v-model="companyForm.name" placeholder="请输入单位名称" />
         </el-form-item>
-        <el-form-item label="项目数" prop="projectCount">
-          <el-input-number v-model="companyForm.projectCount" :min="0" />
+        <el-form-item label="单位地址" prop="address">
+          <el-input v-model="companyForm.address" placeholder="请输入单位地址" />
         </el-form-item>
-        <el-form-item label="成果数" prop="achievementCount">
-          <el-input-number v-model="companyForm.achievementCount" :min="0" />
+        <el-form-item label="单位电话" prop="phone">
+          <el-input v-model="companyForm.phone" placeholder="请输入单位电话" />
+        </el-form-item>
+        <el-form-item label="联系人" prop="contactName">
+          <el-input v-model="companyForm.contactName" placeholder="请输入联系人姓名" />
+        </el-form-item>
+        <el-form-item label="联系人电话" prop="contactPhone">
+          <el-input v-model="companyForm.contactPhone" placeholder="请输入联系人电话" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -114,7 +124,7 @@
       title="确认删除"
       width="400px"
     >
-      <p>确定要删除公司 "{{ companyToDelete?.name }}" 吗？此操作不可恢复。</p>
+      <p>确定要删除单位 "{{ companyToDelete?.name }}" 吗？此操作不可恢复。</p>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="deleteDialogVisible = false">取消</el-button>
@@ -134,8 +144,11 @@ import {
   getCompanyById,
   addCompany,
   updateCompany,
-  deleteCompany
+  deleteCompany,
+
+  fuzzySearchAchievements
 } from '../../api/companyInfo';
+import { addLog } from '../../api/log';
 
 // 数据状态
 const companies = ref([]);
@@ -151,8 +164,12 @@ const companyFormRef = ref(null);
 const companyForm = ref({
   id: null,
   name: '',
+  address: '',
+  phone: '',
+  contactName: '',
+  contactPhone: '',
   projectCount: 0,
-  achievementCount: 0
+  achievementCount: 0  // 保留这两个字段用于显示，但不在表单中编辑
 });
 
 // 删除对话框
@@ -162,20 +179,28 @@ const companyToDelete = ref(null);
 // 表单验证规则
 const rules = {
   name: [
-    { required: true, message: '请输入公司名称', trigger: 'blur' },
+    { required: true, message: '请输入单位名称', trigger: 'blur' },
     { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
   ],
-  projectCount: [
-    { required: true, message: '请输入项目数', trigger: 'blur' },
-    { type: 'number', min: 0, message: '项目数必须大于等于0', trigger: 'blur' }
+  address: [
+    { required: true, message: '请输入单位地址', trigger: 'blur' },
+    { max: 200, message: '长度不能超过 200 个字符', trigger: 'blur' }
   ],
-  achievementCount: [
-    { required: true, message: '请输入成果数', trigger: 'blur' },
-    { type: 'number', min: 0, message: '成果数必须大于等于0', trigger: 'blur' }
+  phone: [
+    { required: true, message: '请输入单位电话', trigger: 'blur' },
+    { pattern: /^[\d-]+$/, message: '请输入有效的电话号码', trigger: 'blur' }
+  ],
+  contactName: [
+    { required: true, message: '请输入联系人姓名', trigger: 'blur' },
+    { max: 50, message: '长度不能超过 50 个字符', trigger: 'blur' }
+  ],
+  contactPhone: [
+    { required: true, message: '请输入联系人电话', trigger: 'blur' },
+    { pattern: /^[\d-]+$/, message: '请输入有效的电话号码', trigger: 'blur' }
   ]
 };
 
-// 计算属性：过滤后的公司列表
+// 计算属性：过滤后的单位列表
 const filteredCompanies = computed(() => {
   if (!searchQuery.value) {
     return companies.value;
@@ -185,7 +210,7 @@ const filteredCompanies = computed(() => {
   );
 });
 
-// 计算属性：分页后的公司列表
+// 计算属性：分页后的单位列表
 const paginatedCompanies = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
   const end = start + pageSize.value;
@@ -212,26 +237,67 @@ const fetchCompanies = async () => {
     } 
     
     // 转换数据，处理null值
-    companies.value = backendData.map(item => ({
-      id: item.organizationId,
-      name: item.organizationName,
-      projectCount: item.organizationProjectCount !== null ? item.organizationProjectCount : 0,
-      achievementCount: item.organizationProjectTotalCount !== null ? item.organizationProjectTotalCount : 0,
-      status: item.tableStatus
+    companies.value = await Promise.all(backendData.map(async item => {
+      // 获取每个单位的成果数量
+      const achievementCount = await getAchievementCount(item.organizationId);
+      
+      // 更新数据库中的achievementCount
+      try {
+        await updateCompany({
+          id: item.organizationId,
+          achievementCount: achievementCount || 0
+        });
+      } catch (error) {
+        console.error('更新单位成果数量出错:', error);
+      }
+      
+      return {
+        id: item.organizationId,
+        name: item.organizationName,
+        address: item.organizationAddress || '',
+        phone: item.organizationPhone || '',
+        contactName: item.contactsName || '',
+        contactPhone: item.contactsPhone || '',
+        projectCount: item.organizationProjectCount !== null ? item.organizationProjectCount : 0,
+        achievementCount: achievementCount || 0,
+        status: item.tableStatus
+      };
     }));
     
     console.log('Transformed company data:', companies.value);
   } catch (error) {
-    console.error('获取公司列表出错:', error);
-    ElMessage.error('获取公司列表出错');
+    console.error('获取单位列表出错:', error);
+    ElMessage.error('获取单位列表出错');
   } finally {
     loading.value = false;
   }
 };
 
+// 新增方法：获取单位成果数量
+const getAchievementCount = async (organizationId) => {
+  try {
+    const searchBody = {
+      achievementBelongingOrganizations: [organizationId]
+    };
+    console.log('Search body:', searchBody);
+    const response = await fuzzySearchAchievements(searchBody);
+    console.log('Response for organizationId:', organizationId, response);
+    
+    if (!response || !Array.isArray(response)) {
+      console.warn(`Invalid response for organizationId: ${organizationId}`, response);
+      return 0;
+    }
+    
+    return response.length;
+  } catch (error) {
+    console.error('获取成果数量出错:', error);
+    return 0;
+  }
+};    
+
 const handleSearch = () => {
-  currentPage.value = 1;
-};
+  currentPage.value = 1;  
+};  
 
 const handleSizeChange = (val) => {
   pageSize.value = val;
@@ -246,11 +312,14 @@ const resetForm = () => {
   companyForm.value = {
     id: null,
     name: '',
+    address: '',
+    phone: '',
+    contactName: '',
+    contactPhone: '',
     projectCount: 0,
-    achievementCount: 0
+    achievementCount: 0  // 保留这两个字段用于显示，但不在表单中编辑
   };
   
-  // 重置表单验证
   if (companyFormRef.value) {
     companyFormRef.value.resetFields();
   }
@@ -282,6 +351,8 @@ const confirmDelete = async () => {
   if (!companyToDelete.value) return;
   
   try {
+    const userId = localStorage.getItem('userId');
+    const userName = localStorage.getItem('username');
     console.log('Deleting company with ID:', companyToDelete.value.id);
     const response = await deleteCompany(companyToDelete.value.id);
     
@@ -289,6 +360,13 @@ const confirmDelete = async () => {
     
     if (response === 1 || response === '1') {
       ElMessage.success('删除成功');
+      // 添加日志
+      await addLog({
+        userId: userId,
+        logIntro: `删除单位: ${companyToDelete.value.name}`,
+        logTime: new Date().toISOString().split('T')[0],
+        tableStatus: true
+      });
       fetchCompanies();
     } else {
       ElMessage.error('删除失败: ' + response.data.msg);
@@ -311,31 +389,46 @@ const submitForm = async () => {
   try {
     // 表单验证
     await companyFormRef.value.validate();
-    
+    const userId = localStorage.getItem('userId');
+    const userName = localStorage.getItem('username');
     console.log('Submitting form data:', companyForm.value);
-    
+    console.log("companyForm.value",companyForm.value);
     // 提交表单
     if (dialogType.value === 'add') {
       const response = await addCompany(companyForm.value);
-      console.log('Add response:', response);
       
-      if (response === 1 || response === '1') {
+      if (response ) {
         ElMessage.success('添加成功');
+        // 添加日志
+        await addLog({
+          userId:userId ,
+          logIntro: `添加单位: ${companyForm.value.name}`,
+          logTime: new Date().toISOString().split('T')[0],
+          tableStatus: true
+        });
         fetchCompanies();
         dialogVisible.value = false;
       } else {
-        ElMessage.error('添加失败: ' + response.data.msg);
+        ElMessage.error('添加失败: ' + response.msg);
       }
     } else {
       const response = await updateCompany(companyForm.value);
       console.log('Update response:', typeof response);
-      
-      if (response === 1 || response === '1') {
+      const userId = localStorage.getItem('userId');
+      const userName = localStorage.getItem('username');
+      if (response) {
         ElMessage.success('更新成功');
+        // 添加日志
+        await addLog({
+          userId:userId,
+          logIntro: `更新单位信息: ${companyForm.value.name}`,
+          logTime: new Date().toISOString().split('T')[0],
+          tableStatus: true
+        });
         fetchCompanies();
         dialogVisible.value = false;
       } else {
-        ElMessage.error('更新失败: ' + response.data.msg);
+        ElMessage.error('更新失败: ' + response.msg);
       }
     }
   } catch (error) {

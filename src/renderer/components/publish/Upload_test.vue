@@ -212,6 +212,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { addFile, addAchievement } from '../../api/upload'
+import { addLog } from '../../api/log'
 import { ElMessage } from 'element-plus'
 
 // State variables
@@ -232,7 +233,7 @@ const showQualityDialog = ref(false)
 const expectedFileCount = computed(() => {
   const savedFormData = localStorage.getItem('Ach_info')
   if (!savedFormData) return null
-  
+  console.log('savedFormData', savedFormData)
   try {
     const formData = JSON.parse(savedFormData)
     return formData.fileCount ? parseInt(formData.fileCount) : null
@@ -430,28 +431,45 @@ const startUpload = async (index) => {
       achievementIntro: savedFormData.description,
       remarks: savedFormData.highlights,
       achievementForm: savedFormData.fileCount.toString(),
-      achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
+      achievementBelongingOrganization: savedFormData.achievementBelongingOrganization?.id || 0,
       organizationName: savedFormData.achievementBelongingOrganization?.name || '',
       projectId: savedFormData.projectId || 0,
-      userId: savedFormData.userId || 0,
       templateId: savedFormData.templateId || 0,
       auditFlag: 0,
       subjectCategory: savedFormData.category,
-      technologyCategory: savedFormData.techType
+      technologyCategory: savedFormData.techType,
+      userId: savedFormData.userId,
+      userName: savedFormData.userName,
+      achievementDownloadCount: 0
     }
     console.log('formData achievementData', achievementData)
     // 同时上传文件+表单数据
-    await addFile([file], achievementData)
-    console.log('上传成功')
-    file.progress = 100
-    file.uploadStatus = '上传成功'
+    const response = await addFile([file], achievementData)
     
-    // 更新上传结果
-    uploadResult.success++
-    uploadResult.show = true
-    
-    // 从列表中移除已上传的文件
-    selectedFiles.value = selectedFiles.value.filter((_, i) => i !== index)
+    // 检查上传是否成功
+    if (response) {
+      // 更新所有文件状态为成功
+      filesToUpload.forEach(file => {
+        file.progress = 100
+        file.uploadStatus = '上传成功'
+        file.uploading = false
+      })
+      
+      uploadResult.success = filesToUpload.length
+      uploadResult.show = true
+
+      // 添加日志记录
+      const currentDate = new Date().toISOString().split('T')[0] // 获取当前日期
+      await addLog({
+        userId: savedFormData.userId,
+        logIntro: `发布了${savedFormData.title}成果`,
+        logTime: currentDate,
+        tableStatus: true
+      })
+
+      // 上传完成后显示质量检查对话框
+      showQualityDialog.value = true
+    }
   } catch (error) {
     console.error('Upload failed:', error)
     file.uploadStatus = '上传失败'
@@ -512,31 +530,45 @@ const uploadAllFiles = async () => {
       achievementIntro: savedFormData.description,
       remarks: savedFormData.highlights,
       achievementForm: savedFormData.fileCount.toString(),
-      achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
+      achievementBelongingOrganization: savedFormData.achievementBelongingOrganization?.id || 0,
       organizationName: savedFormData.achievementBelongingOrganization?.name || '',
       projectId: savedFormData.projectId || 0,
-      userId: savedFormData.userId || 0,
       templateId: savedFormData.templateId || 0,
       auditFlag: 0,
       subjectCategory: savedFormData.category,
-      technologyCategory: savedFormData.techType
+      technologyCategory: savedFormData.techType,
+      userId: savedFormData.userId,
+      userName: savedFormData.userName,
+      achievementDownloadCount: 0
     }
     console.log('formData achievementData', achievementData)
     // 同时上传文件+表单数据
-    await addFile(filesToUpload, achievementData)
+    const response = await addFile(filesToUpload, achievementData)
     
-    // 更新所有文件状态为成功
-    filesToUpload.forEach(file => {
-      file.progress = 100
-      file.uploadStatus = '上传成功'
-      file.uploading = false
-    })
-    
-    uploadResult.success = filesToUpload.length
-    uploadResult.show = true
+    // 检查上传是否成功
+    if (response) {
+      // 更新所有文件状态为成功
+      filesToUpload.forEach(file => {
+        file.progress = 100
+        file.uploadStatus = '上传成功'
+        file.uploading = false
+      })
+      
+      uploadResult.success = filesToUpload.length
+      uploadResult.show = true
 
-    // 上传完成后显示质量检查对话框
-    showQualityDialog.value = true
+      // 添加日志记录
+      const currentDate = new Date().toISOString().split('T')[0] // 获取当前日期
+      await addLog({
+        userId: savedFormData.userId,
+        logIntro: `发布了${savedFormData.title}成果`,
+        logTime: currentDate,
+        tableStatus: true
+      })
+
+      // 上传完成后显示质量检查对话框
+      showQualityDialog.value = true
+    }
   } catch (error) {
     console.error('Upload failed:', error)
     // 更新所有文件状态为失败
@@ -583,48 +615,50 @@ const handleDragEnter = (event) => {
   isDragging.value = true
 }
 
-const submitAllContent = async () => {
-  try {
-    // 获取之前保存的表单数据
-    const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
+// const submitAllContent = async () => {
+//   try {
+//     // 获取之前保存的表单数据
+//     const savedFormData = JSON.parse(localStorage.getItem('Ach_info'))
     
-    if (!savedFormData) {
-      ElMessage.error('未找到成果信息，请返回上一步重新填写')
-      return
-    }
+//     if (!savedFormData) {
+//       ElMessage.error('未找到成果信息，请返回上一步重新填写')
+//       return
+//     }
 
-    const achievementData = {
-      achievementName: savedFormData.title,
-      achievementCategory: savedFormData.type,
-      achievementVersion: savedFormData.version,
-      achievementIntro: savedFormData.description,
-      remarks: savedFormData.highlights,
-      achievementForm: savedFormData.fileCount.toString(),
-      achievementBelongingOrganizationId: savedFormData.achievementBelongingOrganization?.id || 0,
-      organizationName: savedFormData.achievementBelongingOrganization?.name || '',
-      projectId: savedFormData.projectId || 0,
-      userId: savedFormData.userId || 0,
-      templateId: savedFormData.templateId || 0,
-      auditFlag: 0,
-      subjectCategory: savedFormData.category,
-      technologyCategory: savedFormData.techType
-    }
-    console.log('achievementData.userId:', achievementData.userId)
+//     const achievementData = {
+//       achievementName: savedFormData.title,
+//       achievementCategory: savedFormData.type,
+//       achievementVersion: savedFormData.version,
+//       achievementIntro: savedFormData.description,
+//       remarks: savedFormData.highlights,
+//       achievementForm: savedFormData.fileCount.toString(),
+//       achievementBelongingOrganization: savedFormData.achievementBelongingOrganization?.id || 0,
+//       organizationName: savedFormData.achievementBelongingOrganization?.name || '',
+//       projectId: savedFormData.projectId || 0,
+//       templateId: savedFormData.templateId || 0,
+//       auditFlag: 0,
+//       subjectCategory: savedFormData.category,
+//       technologyCategory: savedFormData.techType,
+//       userId: savedFormData.userId,
+//       userName: savedFormData.userName,
+//       achievementDownloadCount: 0
+//     }
+//     console.log('achievementData.userId:', achievementData.userId)
 
-    const response = await addAchievement(achievementData)
+//     const response = await addAchievement(achievementData)
     
-    if (response === 1 || (response && response.code === 200)) {
-      ElMessage.success('成果信息提交成功')
-      // 清除localStorage中的临时数据
-      localStorage.removeItem('Ach_info')
-    } else {
-      throw new Error(response?.message || '提交失败')
-    }
-  } catch (error) {
-    console.error('Submit Error:', error)
-    ElMessage.error(`提交失败：${error.message}`)
-  }
-}
+//     if (response === 1 || (response && response.code === 200)) {
+//       ElMessage.success('成果信息提交成功')
+//       // 清除localStorage中的临时数据
+//       localStorage.removeItem('Ach_info')
+//     } else {
+//       throw new Error(response?.message || '提交失败')
+//     }
+//   } catch (error) {
+//     console.error('Submit Error:', error)
+//     ElMessage.error(`提交失败：${error.message}`)
+//   }
+// }
 
 // 修改关闭质量检查对话框的方法
 const closeQualityDialog = () => {

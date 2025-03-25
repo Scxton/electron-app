@@ -258,12 +258,20 @@ const selectedPath = ref([])
 const searchSubject = ref([]);
 const searchTechnology= ref([]);
 const subjects = ref([
-    { id: 1, name: '计算机科学', count: 120 },
-    { id: 2, name: '生物学', count: 85 },
+    { id: 1, name: '理论',  },
+    { id: 2, name: '系统' },
+    { id: 3, name: '应用' },
+    { id: 4, name: '集成' },
+    { id: 5, name: '测试评估' },
 ]);
 const topics = ref([
-    { id: 1, name: '人工智能', count: 45 },
-    { id: 2, name: '数据分析', count: 32 },
+    { id: 1, name: '前端',  },
+    { id: 2, name: '后端'},
+    { id: 3, name: '框架'},
+    { id: 4, name: '计算'},
+    { id: 5, name: '通信'},
+    { id: 6, name: '测试'},
+
 ]);
 const resultTypes = ref([
     { id: 1, name: '论文', value: 'paper' },

@@ -36,6 +36,12 @@ const routes = [
     
     children: [
       {
+        path: '/publish/myAch',
+        name: '我的成果',
+        iconClass: 'fa fa-upload',
+        component: () => import('@renderer/components/publish/My_Ach.vue')
+      },
+      {
         path: '/publish/info',
         name: '成果信息',
         iconClass: 'fa fa-upload',
@@ -47,12 +53,12 @@ const routes = [
         iconClass: 'fa fa-upload',
         component: () => import('@renderer/components/publish/Upload_test.vue')
       },
-      {
-        path: '/publish/review',
-        name: '成果审核',
-        iconClass: 'fa fa-review',
-        component: () => import('@renderer/components/publish/review.vue')
-      }
+      // {
+      //   path: '/publish/review',
+      //   name: '成果审核',
+      //   iconClass: 'fa fa-review',
+      //   component: () => import('@renderer/components/publish/review.vue')
+      // }
       
       
     ]
@@ -189,6 +195,12 @@ const routes = [
     component: () => import('@renderer/views/home/Home.vue'),
     children: [
       {
+        path: '/home/projects',
+        name: '项目信息表',
+        iconClass: 'fa fa-wrench',
+        component: () => import('@renderer/components/achievements/project.vue')
+      },
+      {
         path: '/home/achievements',
         name: '成果信息表',
         iconClass: 'fa fa-wrench',
@@ -242,15 +254,21 @@ const routes = [
   },
   {
     path: '/datasave',
-    name: '数据备份',
+    name: '用户管理',
     iconClass: 'fa fa-wrench',
     component: () => import('@renderer/views/home/Home.vue'),
     children: [
       {
         path: '/home/datasave',
-        name: '数据备份',
+        name: '用户管理',
         iconClass: 'fa fa-wrench',
         component: () => import('@renderer/components/datasave/Save.vue')
+      },
+      {
+        path: '/home/logs',
+        name: '系统日志',
+        iconClass: 'fa fa-file-text-o',
+        component: () => import('@renderer/components/logs/SystemLogs.vue')
       },
       {
         path: '/home/deleteRecords',
@@ -258,6 +276,20 @@ const routes = [
         iconClass: 'fa fa-wrench',
         component: () => import('@renderer/components/datasave/DeleteRecords.vue')
       }]
+  },
+  {
+    path: '/logs',
+    name: '日志管理',
+    iconClass: 'fa fa-file-text-o',
+    component: () => import('@renderer/views/home/Home.vue'),
+    children: [
+      {
+        path: '/home/logs',
+        name: '系统日志',
+        iconClass: 'fa fa-file-text-o',
+        component: () => import('@renderer/components/logs/SystemLogs.vue')
+      }
+    ]
   }
 ]
 const router = createRouter({

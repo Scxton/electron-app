@@ -1,5 +1,14 @@
 <template>
   <el-row :gutter="20" class="user-management">
+    <!-- 修改为更精致的卡片式显示 -->
+    <el-col :span="24" class="online-user">
+      <el-card class="online-user-card">
+        <div class="card-content">
+          <span class="card-title">当前在线用户</span>
+          <span class="card-count">{{ onlineUserCount }} 人</span>
+        </div>
+      </el-card>
+    </el-col>
       <!-- <el-col :span="24" class="input-container">
 
           <el-input style="width: 280px" placeholder="Type something" :prefix-icon="Search" />
@@ -8,8 +17,13 @@
       <el-col :span="24" class="input-and-buttons">
           <div class="input-and-button">
               <el-button type="primary" @click="handleAddUser">添加用户</el-button>
-              <el-input v-model="input" style="width: 280px; margin-left: 20px;" placeholder="用户ID搜索"
-                  :prefix-icon="Search" />
+              <el-input 
+                  v-model="searchInput" 
+                  style="width: 280px; margin-left: 20px;" 
+                  placeholder="用户ID/用户名搜索"
+                  :prefix-icon="Search"
+                  @input="handleSearch" 
+              />
           </div>
       </el-col>
   </el-row>  
@@ -18,8 +32,11 @@
           :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
           <el-table-column prop="userId" label="用户ID" width="150" />
           <el-table-column prop="userName" label="用户名称" width="150" />
-          <el-table-column prop="roleId" label="用户角色" />
-          <el-table-column prop="userStatus" label="状态" />
+          <el-table-column prop="roleId" label="用户角色">
+              <template #default="scope">
+                  {{ scope.row.roleId === 1 ? '管理员' : scope.row.roleId === 2 ? '发布者' : '普通用户' }}
+              </template>
+          </el-table-column>
           <el-table-column label="申请时间" width="180">
               <template #default="scope">
                   {{ formatDate(scope.row.applicationTime) }}
@@ -34,9 +51,6 @@
                   <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
                       删除
                   </el-button>
-                  <el-button size="small" type="primary" @click="handleMore(scope.$index, scope.row)">
-                      更多
-                  </el-button>
               </template>
           </el-table-column>
       </el-table>
@@ -44,7 +58,7 @@
       <!-- 分页 -->
       <div style="margin-top: 30px;">
           <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
-              @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[2, 8, 15]"
+              @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[10, 15, 20]"
               layout="total, sizes, prev, pager, next, jumper" :total="total">
           </el-pagination>
       </div>
@@ -65,13 +79,8 @@
       <el-form-item label="用户角色" label-position="right">
         <el-select v-model="form.roleId" placeholder="请选择角色">
           <el-option label="管理员" :value="1"></el-option>
-          <el-option label="普通用户" :value="2"></el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="用户状态" label-position="right">
-        <el-select v-model="form.userStatus" placeholder="请选择状态">
-          <el-option label="离线" :value="0"></el-option>
-          <el-option label="在线" :value="1"></el-option>
+          <el-option label="发布者" :value="2"></el-option>
+          <el-option label="普通用户" :value="3"></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="密码" label-position="right" v-if="!isEdit">
@@ -93,26 +102,47 @@ import { Search } from '@element-plus/icons-vue'
 import { ref, onMounted, reactive, nextTick } from 'vue'
 import { queryAll, queryAllWithPagination, addUser, editUser, deleteUser } from "../../api/getUser"
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getOnlineUserCount } from "../../api/user" // 导入API
+import { addLog } from "../../api/log"
 
 const tableData = ref([])   //用户信息列表
 const total = ref(0)   //用户总数
 const currentPage = ref(1)  // 当前页码
-const pageSize = ref(2)  // 每页数量（可通过下拉框选择）
+const pageSize = ref(10)  // 每页数量（可通过下拉框选择）
+const searchInput = ref('')  // 新增搜索输入框的响应式变量
+const originalTableData = ref([])  // 保存原始数据
+const onlineUserCount = ref(0) // 在线用户数
 
 //进入页面后，获取用户总数，获取第一页数据
 onMounted(async () => {
-  tableData.value = await queryAll()   //链接后端请求获取数据
-  total.value = tableData.value.length
-  fetchData()
+    originalTableData.value = await queryAll()   //保存原始数据
+    tableData.value = originalTableData.value    //显示数据
+    total.value = tableData.value.length
+    fetchData()
+    fetchOnlineUsers()
 })
 
 // 分页获取数据
 const fetchData = async () => {
-  try {
-      tableData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
-  } catch (error) {
-      console.error('Error fetching data: ', error)
-  }
+    try {
+     
+        if (searchInput.value) {
+            // 如果有搜索内容，使用已过滤的数据进行分页
+            const start = (currentPage.value - 1) * pageSize.value
+            const end = start + pageSize.value
+            tableData.value = originalTableData.value
+                .filter(item => 
+                    item.userId.toString().toLowerCase().includes(searchInput.value.toLowerCase()) || 
+                    item.userName.toLowerCase().includes(searchInput.value.toLowerCase())
+                )
+                .slice(start, end)
+        } else {
+            // 如果没有搜索内容，正常获取分页数据
+            tableData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
+        }
+    } catch (error) {
+        console.error('Error fetching data: ', error)
+    }
 }
 
 const handlePageSizeChange = (newSize) => {
@@ -143,7 +173,6 @@ const form = ref({
   userId: '',
   userName: '',
   roleId: '',
-  userStatus: 0,
   userPwd: '',
   userIntro: '',
   tableStatus: true,
@@ -183,7 +212,6 @@ const handleAddUser = () => {
     userId: '',
     userName: '',
     roleId: '',
-    userStatus: 0,
     userPwd: '',
     userIntro: '',
     tableStatus: true,
@@ -217,6 +245,13 @@ const handleDelete = (index, row) => {
       try {
         const response = await deleteUser(row.userId)
         if (response === 1 || response === '1') {
+          // 添加日志
+          await addLog({
+            userId: localStorage.getItem('userId'),
+            logIntro: `删除用户：${row.userName}`,
+            logTime: formatDate(new Date()),
+            tableStatus: true
+          })
           ElMessage({
             type: 'success',
             message: '删除成功',
@@ -238,11 +273,6 @@ const handleDelete = (index, row) => {
     })
 }
 
-// 更多操作
-const handleMore = (index, row) => {
-  console.log('更多操作:', index, row)
-}
-
 // 提交表单（添加或编辑用户）
 const handleAdd = async () => {
   try {
@@ -250,12 +280,26 @@ const handleAdd = async () => {
     if (isEdit.value) {
       // 编辑用户
       response = await editUser(form.value)
+      // 添加日志
+      await addLog({
+        userId: localStorage.getItem('userId'),
+        logIntro: `编辑用户：${form.value.userName}`,
+        logTime: formatDate(new Date()),
+        tableStatus: true
+      })
     } else {
       // 添加用户
       response = await addUser(form.value)
+      // 添加日志
+      await addLog({
+        userId: localStorage.getItem('userId'),
+        logIntro: `添加用户：${form.value.userName}`,
+        logTime: formatDate(new Date()),
+        tableStatus: true
+      })
     }
-    
-    if (response === 1 || response === '1') {
+    console.log("response ",response)
+    if (response) {
       ElMessage({
         type: 'success',
         message: isEdit.value ? '编辑成功' : '添加成功',
@@ -263,17 +307,48 @@ const handleAdd = async () => {
       addDialogVisible.value = false
       initTableData() // 重新加载数据
     } else {
-      ElMessage.error(isEdit.value ? '编辑失败' : '添加失败')
+      ElMessage.error(isEdit.value ? '编辑失败1' : '添加失败')
     }
   } catch (error) {
     console.error('操作失败:', error)
-    ElMessage.error(isEdit.value ? '编辑失败' : '添加失败')
+    ElMessage.error(isEdit.value ? '编辑失败2' : '添加失败')
   }
 }
 
 // 取消添加/编辑
 const cancelAdd = () => {
   addDialogVisible.value = false
+}
+
+// 添加搜索处理函数
+const handleSearch = () => {
+    if (!searchInput.value) {
+        // 如果搜索框为空，恢复原始数据
+        fetchData()
+        return
+    }
+
+    const searchTerm = searchInput.value.toLowerCase()
+    const filteredData = originalTableData.value.filter(item => 
+        item.userId.toString().toLowerCase().includes(searchTerm) || 
+        item.userName.toLowerCase().includes(searchTerm)
+    )
+    
+    tableData.value = filteredData
+    total.value = filteredData.length
+    currentPage.value = 1  // 重置到第一页
+}
+
+// 获取在线用户数
+const fetchOnlineUsers = async () => {
+  try {
+    const response = await getOnlineUserCount()
+    if (response ) {
+      onlineUserCount.value = response
+    }
+  } catch (error) {
+    console.error('获取在线用户数失败:', error)
+  }
 }
 
 </script>
@@ -293,6 +368,7 @@ const cancelAdd = () => {
 
 /* 添加全局间距样式 */
 .user-management {
+  position: relative; /* 添加相对定位以支持绝对定位的子元素 */
   margin: 20px 0;
   background-color: #f5f7fa;
   border-radius: 8px;
@@ -404,5 +480,45 @@ const cancelAdd = () => {
 /* 标签样式 */
 .el-tag {
   border-radius: 4px;
+}
+
+/* 修改在线用户样式为更精致的卡片 */
+.online-user {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.online-user-card {
+  width: 180px;
+  background: linear-gradient(135deg, #67c23a, #5daf34);
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.online-user-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+}
+
+.card-title {
+  font-size: 14px;
+  color: white;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.card-count {
+  font-size: 24px;
+  color: white;
+  font-weight: 600;
 }
 </style>

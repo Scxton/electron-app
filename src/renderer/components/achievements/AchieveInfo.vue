@@ -1,268 +1,926 @@
 <template>
-    <div class="result-management">
-        <!-- 搜索框 -->
-        <div style="margin-top: 10px;display: flex;justify-content: center">
-            <el-input v-model="keywords" placeholder="请输入关键字查询" style="width: 400px;margin-right: 10px"
-                @keydown.enter.native="doSearch"></el-input>
-            <el-button :icon="Search" type="primary" @click="doSearch">搜索</el-button>
+    <div class="achievement-container">
+      <div class="display-controls">
+        <div class="filter-section">
+          <div class="search-box">
+            <el-input
+              v-model="searchText"
+              placeholder="搜索成果名称或发布单位"
+              clearable
+              @input="filterAchievements"
+            >
+              <template #prefix>
+                <i class="fas fa-search"></i>
+              </template>
+            </el-input>
+          </div>
+          <label>成果状态: </label>
+          <div class="status-select-wrapper">
+            <select v-model="selectedStatus" @change="filterAchievements" class="status-select">
+              <option value="all">全部</option>
+              <option value="0">待审核</option>
+              <option value="1">已发布</option>
+            </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
+          </div>
+          <div class="statistics">
+            <span class="stat-item">成果总数: {{ totalCount }}</span>
+            <span class="stat-item">待审核: {{ pendingCount }}</span>
+            <span class="stat-item">已发布: {{ publishedCount }}</span>
+          </div>
         </div>
+        <div class="view-controls">
+          <button 
+            class="review-btn"
+            @click="showReviewModal"
+          >
+            <i class="fas fa-clipboard-check"></i> 待审核成果
+          </button>
+          <button 
+            class="add-btn"
+            @click="addAchievement"
+          >
+            <i class="fas fa-plus"></i> 添加成果
+          </button>
+        </div>
+      </div>
+      
+      <div class="list-container">
+        <div class="list-header">
+          <div class="list-column">成果名称</div>
+          <div class="list-column">成果类型</div>
+          <div class="list-column">发布单位</div>
+          <div class="list-column">成果状态</div>
+          <div class="list-column">下载次数</div>
+          <div class="list-column">上传时间</div>
+          <div class="list-column">操作</div>
+        </div>
+        <div class="list-item" v-for="achievement in paginatedAchievements" :key="achievement.id">
+          <div class="list-cell achievement-name">{{ achievement.achievementName }}</div>
+          <div class="list-cell">{{ translateCategory(achievement.achievementCategory) }}</div>
+          <div class="list-cell">{{ achievement.organizationName }}</div>
+          <div class="list-cell">
+            <span :class="['status-badge', getStatusClass(achievement.auditFlag)]">
+              {{ getStatus(achievement.auditFlag) }}
+            </span>
+          </div>
+          <div class="list-cell">{{ achievement.achievementDownloadCount }}</div>
+          <div class="list-cell">{{ formatDate(achievement.uploadTime) }}</div>
+          <div class="list-cell actions">
+            <button class="edit-btn" @click="editAchievement(achievement)">
+              编辑
+            </button>
+            <button 
+              class="delete-btn"
+              @click="deleteAchievement(achievement)"
+            >
+              删除
+            </button>
+          </div>
+        </div>
+        <div class="pagination-controls">
+          <div class="page-size-select">
+            <label>每页显示:</label>
+            <select v-model="pageSize" @change="changePageSize">
+              <option value="10">10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+            </select>
+          </div>
+          <div class="page-buttons">
+            <button 
+              class="page-btn" 
+              :disabled="currentPage === 1"
+              @click="prevPage"
+            >
+              上一页
+            </button>
+            <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+            <button 
+              class="page-btn" 
+              :disabled="currentPage === totalPages"
+              @click="nextPage"
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+      </div>
 
-        <!-- 分类按钮，成果信息表格 -->
-        <div style="margin-top: 10px">
-            <el-tabs type="border-card" v-model="testType" @tab-click="clickTab">
-                <el-tab-pane v-for="(item, index) in typeData" :key="index" :label="item.label" :name="item.name">
-                    <el-table :data="achievementData" style="width: 100%;"
-                        :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
-                        <el-table-column prop="achievementId" label="成果编号" width="150" />
-                        <el-table-column prop="achievementName" label="成果名称" width="200" />
-                        <el-table-column prop="achievementCategory" label="成果类型" width="150" />
-                        <el-table-column prop="projectNo" label="项目编号" width="150" />
-                        <el-table-column prop="userName" label="发布用户" width="150" />
-                        <el-table-column prop="organizationName" label="所属单位" width="150" />
-                        <el-table-column prop="searchCount" label="下载次数" />
-                        <el-table-column label="操作" width="200">
-                            <template #default="scope">
-                                <el-button size="small" type="success" @click="openEditView(scope.row)">
-                                    编辑
-                                </el-button>
-                                <el-button size="small" type="danger" @click="deleteResult(scope.row)">
-                                    删除
-                                </el-button>
-                                <el-button size="small" @click="moreDetails(scope.row)">更多</el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <div style="margin-top: 30px;">
-                        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
-                            @size-change="handlePageSizeChange" @current-change="handleCurrentChange"
-                            :page-sizes="[2, 8, 15]" layout="total, sizes, prev, pager, next, jumper" :total="total">
-                        </el-pagination>
-                    </div>
-                </el-tab-pane>
-            </el-tabs>
-            <!-- 修改成果信息弹出框-->
-            <div>
-                <el-dialog title="编辑成果信息" v-model="editDialogVisible" width="500px" center
-                    :close-on-click-modal="false">
-                    <el-form ref="resultsRef" :model="thisAchieveInfo" :rules="rules" label-width="auto">
-                        <el-form-item label="成果名称" prop="achievementName">
-                            <el-input v-model="thisAchieveInfo.achievementName" />
-                        </el-form-item>
-                        <!-- <el-form-item label="成果类型" prop="achievementCategory">
-                                    <el-radio-group v-model="thisAchieveInfo.achievementCategory" prop="achievementCategory">
-                                        <el-radio label="项目专利">项目专利</el-radio>
-                                        <el-radio label="项目论文">项目论文</el-radio>
-                                        <el-radio label="其他成果">其他成果</el-radio>
-                                    </el-radio-group>
-                                </el-form-item> -->
-                        <el-form-item label="成果类型" prop="achievementCategory">
-                            <el-input v-model="thisAchieveInfo.achievementCategory" type="textarea" />
-                        </el-form-item>
-                        <el-form-item>
-                            <el-button type="primary" @click="editAchieveInfo(resultsRef)">确 定</el-button>
-                            <el-button @click="editDialogVisible = false">取 消</el-button>
-                        </el-form-item>
-                    </el-form>
-                </el-dialog>
-            </div>
-        </div>
+      <!-- 审核弹窗 -->
+      <el-dialog
+        v-model="reviewModalVisible"
+        title="待审核成果"
+        width="80%"
+        fullscreen
+      >
+        <review-component />
+      </el-dialog>
+
+      <!-- 编辑弹窗 -->
+      <el-dialog
+        v-model="editDialogVisible"
+        title="编辑成果信息"
+        width="30%"
+      >
+        <el-form :model="editForm" label-width="120px">
+          <el-form-item label="成果名称">
+            <el-input v-model="editForm.achievementName" />
+          </el-form-item>
+          <el-form-item label="成果类型">
+            <el-select v-model="editForm.achievementCategory">
+              <el-option label="论文" value="paper" />
+              <el-option label="专利" value="patent" />
+              <el-option label="项目" value="project" />
+              <el-option label="报告" value="report" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="版本号">
+            <el-input v-model="editForm.achievementVersion" />
+          </el-form-item>
+          <el-form-item label="成果简介">
+            <el-input 
+              v-model="editForm.achievementIntro" 
+              type="textarea"
+              :rows="3"
+            />
+          </el-form-item>
+          <el-form-item label="发布单位">
+            <el-select
+              v-model="editForm.organizationId"
+              filterable
+              clearable
+              placeholder="请选择发布单位"
+              :loading="companyLoading"
+            >
+              <el-option
+                v-for="company in companies"
+                :key="company.value"
+                :label="company.label"
+                :value="company.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="editDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleEditSubmit">确认</el-button>
+        </template>
+      </el-dialog>
     </div>
-</template>
-
-<script setup>
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus, } from '@element-plus/icons-vue'
-import { ref, onMounted } from 'vue'
-import { deleteItem, queryAll, queryAllWithPagination, queryAllWithPatent, queryAllWithPaper, queryAllWithOthers, update } from "../../api/achieveInfo"
-
-const achievementData = ref([])   //成果数据列表
-const total = ref(0)   //成果总数据量
-const currentPage = ref(1)  // 当前页码
-const pageSize = ref(15)  // 每页数量（可通过下拉框选择）
-const testType = ref("全部")
-const keywords = ref("")
-const typeData = ref([
-    {
-        name: "全部",
-        label: "全部"
+  </template>
+  
+  <script>
+  import { queryAll,update,deleteItem } from '../../api/achieveInfo.js'
+  import { ref, onMounted, watch } from 'vue'
+  import { useRouter } from 'vue-router'
+  import ReviewComponent from '../publish/review.vue'
+  import { ElMessageBox } from 'element-plus'
+  import { getAllCompanies } from '../../api/companyInfo'
+  import { addLog } from '../../api/log.js'
+  
+  export default {
+    components: {
+      ReviewComponent
     },
-    {
-        name: "项目专利",
-        label: "项目专利"
-    },
-    {
-        name: "项目论文",
-        label: "项目论文"
-    },
-    {
-        name: "其他成果",
-        label: "其他成果"
-    }
-])
-
-
-const editDialogVisible = ref(false)
-const resultsRef = ref(null)
-const thisAchieveInfo = ref({
-    achievementId: 0,
-    achievementName: '',
-    //isParament: '否',
-    //achievementCategory: '文档审查',
-    //description: '',
-    achievementCategory: '',
-    //expectedResult: '',
-    //testObject: '',
-    //index3Type: ''
-})   //当前成果信息
-
-const rules = ref({
-    achievementName: [
-        { required: true, message: '请输入成果名称', trigger: 'blur' },
-        { max: 255, message: '名称长度不超过63个字符', trigger: 'blur' },
-    ],
-    // organizationName: [
-    //     { required: true, message: '所属单位不能为空', trigger: 'blur' },
-    // ]
-    achievementCategory: [
-        { required: true, message: '请选择成果类型', trigger: 'blur' },
-    ]
-})
-
-
-
-
-//进入页面后，获取成果总数量，获取第一页数据
-onMounted(async () => {
-    achievementData.value = await queryAll()   //链接后端请求获取数据
-    total.value = achievementData.value.length
-    fetchData()
-})
-
-const doSearch = async () => {
-
-}
-
-// 根据成果类别进行查询
-const clickTab = async (tab) => {
-    if (tab.props.name === "全部") {
-        currentPage.value = 1
-        pageSize.value = 2
-        total.value = 12   //该值应该从后端获取，等WCL提供接口
-        achievementData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
-    } else if (tab.props.name === "项目专利") {
-        currentPage.value = 1
-        pageSize.value = 2
-        total.value = 3
-        achievementData.value = await queryAllWithPatent(currentPage.value, pageSize.value)
-    } else if (tab.props.name === "项目论文") {
-        currentPage.value = 1
-        pageSize.value = 2
-        total.value = 4
-        achievementData.value = await queryAllWithPaper(currentPage.value, pageSize.value)
-    } else if (tab.props.name === "其他成果") {
-        currentPage.value = 1
-        pageSize.value = 2
-        total.value = 5
-        achievementData.value = await queryAllWithOthers(currentPage.value, pageSize.value)
-    }
-}
-
-
-// 分页获取数据
-const fetchData = async () => {
-    try {
-        //console.log("testType.value = ", testType.value);
-        if (testType.value === "全部") {
-            //  console.log("查询全部");
-            achievementData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
-        } else if (testType.value === "项目专利") {
-            //  console.log("查询项目专利");
-            achievementData.value = await queryAllWithPatent(currentPage.value, pageSize.value)
-        } else if (testType.value === "项目论文") {
-            //   console.log("查询项目论文");
-            achievementData.value = await queryAllWithPaper(currentPage.value, pageSize.value)
-        } else if (testType.value === "其他成果") {
-            //  console.log("查询其他成果");
-            achievementData.value = await queryAllWithOthers(currentPage.value, pageSize.value)
+    setup() {
+      const achievements = ref([])
+      const allAchievements = ref([]) // Store all achievements
+      const selectedStatus = ref('all')
+      const router = useRouter()
+      const viewMode = ref('list') // Remove 'card' option
+      const totalCount = ref(0)
+      const pendingCount = ref(0)
+      const publishedCount = ref(0)
+      const currentPage = ref(1)
+      const pageSize = ref(10)
+      const totalPages = ref(1)
+      const paginatedAchievements = ref([])
+      const reviewModalVisible = ref(false)
+      const editDialogVisible = ref(false)
+      const editForm = ref({
+        id: '',
+        achievementName: '',
+        achievementCategory: '',
+        achievementVersion: '',
+        achievementIntro: '',
+        organizationId: ''
+      })
+      const companies = ref([])
+      const companyLoading = ref(false)
+      const searchText = ref('')
+  
+      const updateStatistics = (achievements) => {
+        totalCount.value = achievements.length
+        pendingCount.value = achievements.filter(a => a.auditFlag == 0).length
+        publishedCount.value = achievements.filter(a => a.auditFlag == 1).length
+      }
+  
+      const fetchAchievements = async () => {
+        try {
+          const response = await queryAll()
+          console.log(response)
+          allAchievements.value = response
+          filterAchievements()
+          // updateStatistics(allAchievements.value) // Update statistics
+        } catch (error) {
+          console.error('Error fetching achievements:', error)
         }
-    } catch (error) {
-        console.error('Error fetching data: ', error)
-    }
-}
+      }
+  
+      const filterAchievements = () => {
+        let filtered = allAchievements.value;
+        
+        // Filter by search text
+        if (searchText.value) {
+          const searchLower = searchText.value.toLowerCase()
+          filtered = filtered.filter(achievement => 
+            achievement.achievementName.toLowerCase().includes(searchLower) ||
+            achievement.organizationName.toLowerCase().includes(searchLower)
+          )
+        }
+        
+        // Filter by status if not 'all'
+        if (selectedStatus.value !== 'all') {
+          filtered = filtered.filter(
+            achievement => achievement.auditFlag == selectedStatus.value
+          );
+        }
+        
+        achievements.value = filtered;
+        updateStatistics(filtered)
+      }
+  
+      const formatDate = (timestamp) => {
+        const date = new Date(timestamp);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+  
+      const translateCategory = (category) => {
+        const translations = {
+          paper: '论文',
+          patent: '专利',
+          project: '项目',
+          report: '报告'
+        };
+        return translations[category] || category;
+      }
+  
+      const getStatus = (auditFlag) => {
+        switch (auditFlag) {
+          case 0:
+            return '待审核';
+          case 1:
+            return '已发布';
+          default:
+            return '待上传';
+        }
+      }
+  
+      const getStatusClass = (auditFlag) => {
+        switch (auditFlag) {
+          case 0:
+            return 'pending';
+          case 1:
+            return 'published';
+          default:
+            return '';
+        }
+      }
+  
+      const editAchievement = (achievement) => {
+        editForm.value = {
+          achievementId: achievement.achievementId,
+          achievementName: achievement.achievementName,
+          achievementCategory: achievement.achievementCategory,
+          achievementVersion: achievement.achievementVersion || '',
+          achievementIntro: achievement.achievementIntro || '',
+          organizationId: achievement.organizationId
+        }
+        editDialogVisible.value = true
+      }
+  
+      const handleEditSubmit = async () => {
+        try {
+          console.log('Submitting edit form:', editForm.value)
+          
+          // Validate required fields
+          if (!editForm.value.achievementName || !editForm.value.achievementCategory) {
+            ElMessageBox.alert('成果名称和成果类型是必填项', '操作失败', {
+              confirmButtonText: '确定',
+              type: 'error'
+            })
+            return
+          }
 
-const handlePageSizeChange = (newSize) => {
-    currentPage.value = 1
-    pageSize.value = newSize
-    fetchData()
-}
-
-const handleCurrentChange = (newPage) => {
-    currentPage.value = newPage
-    fetchData()
-}
-
-const initTableData = async () => {
-    achievementData.value = await queryAll()
-    total.value = achievementData.value.length
-    fetchData()
-}
-
-const deleteResult = (row) => {
-    ElMessageBox.confirm('删除本条成果, 是否继续?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-    }).then(async () => {
-        await deleteItem(row.achievementId)
-        initTableData()
-    }).catch(() => {
-        ElMessage({
-            type: 'info',
-            message: '已取消删除操作'
-        })
-    })
-}
-
-
-
-const editAchieveInfo = (resultsRef) => {
-    resultsRef.validate(async (valid) => {
-        if (valid) {
-            console.log("12345=", thisAchieveInfo.value)
-            await update(thisAchieveInfo.value)
-            initTableData()
+          // Call update API
+          const response = await update(editForm.value)
+          console.log('Update API response:', response)
+          
+          // Check if update was successful
+          if (response) {
             editDialogVisible.value = false
+            await fetchAchievements() // 重新获取数据
+            console.log('Achievements refreshed successfully')
+            
+            // Add log for edit operation
+            await addLog({
+              userId: localStorage.getItem('userId'),
+              logIntro: `编辑成果: ${editForm.value.achievementName}`,
+              logTime: new Date().toISOString().split('T')[0],
+              tableStatus: true
+            });
+            
+            // 使用弹窗显示成功信息
+            ElMessageBox.alert('编辑成功', '操作成功', {
+              confirmButtonText: '确定',
+              type: 'success'
+            })
+          } else {
+            // 显示更详细的错误信息
+            const errorMsg = response?.message || '更新失败，请检查网络连接或联系管理员'
+            throw new Error(errorMsg)
+          }
+        } catch (error) {
+          console.error('Error updating achievement:', error)
+          ElMessageBox.alert('更新失败：' + (error.message || '未知错误'), '操作失败', {
+            confirmButtonText: '确定',
+            type: 'error'
+          })
         }
-    })
-}
-
-const openEditView = (row) => {
-    thisAchieveInfo.value.achievementName = row.achievementName
-    thisAchieveInfo.value.achievementCategory = row.achievementCategory
-
-    thisAchieveInfo.value.achievementId = row.achievementId
-    resultsRef.value = null
-    editDialogVisible.value = true
-}
-
-
-</script>
-
-<style scoped>
-/* 使用 Flexbox 布局 */
-.filter-section {
+      }
+  
+      const addAchievement = () => {
+        // Add log for add operation
+       
+        router.push({ path: '/publish/info' });
+      }
+  
+      const updatePagination = () => {
+        const start = (currentPage.value - 1) * pageSize.value
+        const end = start + pageSize.value
+        paginatedAchievements.value = achievements.value.slice(start, end)
+        totalPages.value = Math.ceil(achievements.value.length / pageSize.value)
+      }
+  
+      const changePageSize = () => {
+        currentPage.value = 1
+        updatePagination()
+      }
+  
+      const nextPage = () => {
+        if (currentPage.value < totalPages.value) {
+          currentPage.value++
+          updatePagination()
+        }
+      }
+  
+      const prevPage = () => {
+        if (currentPage.value > 1) {
+          currentPage.value--
+          updatePagination()
+        }
+      }
+  
+      const showReviewModal = () => {
+        reviewModalVisible.value = true
+      }
+  
+      const deleteAchievement = async (achievement) => {
+        try {
+          // 二次确认弹窗
+          await ElMessageBox.confirm(
+            `确定要删除成果 "${achievement.achievementName}" 吗？`,
+            '删除确认',
+            {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              type: 'warning'
+            }
+          )
+          
+          // 调用删除接口
+          const response = await deleteItem(achievement.achievementId)
+          console.log('Delete API response:', response)
+          
+          if (response) {
+            // Add log for delete operation
+            await addLog({
+              userId: localStorage.getItem('userId'),
+              logIntro: `删除成果: ${achievement.achievementName}`,
+              logTime: new Date().toISOString().split('T')[0],
+              tableStatus: true
+            });
+            // 删除成功提示
+            ElMessageBox.alert('删除成功', '操作成功', {
+              confirmButtonText: '确定',
+              type: 'success'
+            })
+            // 重新获取数据
+            await fetchAchievements()
+          } else {
+            throw new Error(response?.message || '删除失败')
+          }
+        } catch (error) {
+          // 用户取消删除时不显示错误
+          if (error !== 'cancel') {
+            console.error('Error deleting achievement:', error)
+            ElMessageBox.alert('删除失败：' + (error.message || '未知错误'), '操作失败', {
+              confirmButtonText: '确定',
+              type: 'error'
+            })
+          }
+        }
+      }
+  
+      const fetchCompanies = async () => {
+        try {
+          companyLoading.value = true
+          const response = await getAllCompanies()
+          companies.value = response.map(company => ({
+            value: company.organizationId,
+            label: company.organizationName
+          }))
+        } catch (error) {
+          console.error('Error fetching companies:', error)
+          ElMessage.error('获取公司信息失败')
+        } finally {
+          companyLoading.value = false
+        }
+      }
+  
+      watch(achievements, () => {
+        updatePagination()
+      })
+  
+      onMounted(() => {
+        fetchAchievements()
+        fetchCompanies() // 获取公司数据
+      })
+  
+      return {
+        achievements,
+        selectedStatus,
+        formatDate,
+        translateCategory,
+        getStatus,
+        getStatusClass,
+        filterAchievements,
+        editAchievement,
+        addAchievement,
+        viewMode,
+        totalCount,
+        pendingCount,
+        publishedCount,
+        currentPage,
+        pageSize,
+        totalPages,
+        paginatedAchievements,
+        changePageSize,
+        nextPage,
+        prevPage,
+        reviewModalVisible,
+        showReviewModal,
+        editDialogVisible,
+        editForm,
+        handleEditSubmit,
+        deleteAchievement,
+        companies,
+        companyLoading,
+        searchText
+      }
+    }
+  }
+  </script>
+  
+  <style scoped>
+  .achievement-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .display-controls {
     display: flex;
     justify-content: space-between;
-    /* 左右两部分 */
     align-items: center;
-    /* 垂直居中 */
-    margin-bottom: 20px;
-    margin-top: 20px;
-}
-
-.filter-buttons {
+    margin-bottom: 30px;
+  }
+  
+  .filter-section {
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .search-box {
+    width: 300px;
+    margin-right: 20px;
+  }
+  
+  .search-box .el-input__prefix {
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    color: #999;
+  }
+  
+  .status-select-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 200px;
+  }
+  
+  .status-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fff;
+    font-size: 14px;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .status-select:hover {
+    border-color: #409eff;
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  }
+  
+  .status-select:focus {
+    outline: none;
+    border-color: #409eff;
+    box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
+  }
+  
+  .select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #666;
+    font-size: 12px;
+    transition: color 0.3s ease;
+  }
+  
+  .status-select:hover + .select-arrow {
+    color: #409eff;
+  }
+  
+  .view-controls {
     display: flex;
     gap: 10px;
-    /* 按钮之间的间距 */
-}
-</style>
+    align-items: center;
+  }
+  
+  .review-btn {
+    padding: 8px 16px;
+    background-color: #e6a23c;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .review-btn:hover {
+    background-color: #ebb563;
+  }
+  
+  .review-btn i {
+    margin-right: 6px;
+  }
+  
+  .add-btn {
+    padding: 8px 16px;
+    background-color: #67c23a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .add-btn:hover {
+    background-color: #85ce61;
+  }
+  
+  .add-btn i {
+    margin-right: 6px;
+  }
+  
+  .list-container {
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #fff;
+  }
+  
+  .list-header {
+    display: flex;
+    background-color: #f5f7fa;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: #606266;
+    border-bottom: 1px solid #ebeef5;
+  }
+  
+  .list-column {
+    flex: 1;
+    padding: 0 8px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #ebeef5;
+    transition: background-color 0.3s ease;
+  }
+  
+  .list-item:hover {
+    background-color: #f5f7fa;
+  }
+  
+  .list-item:nth-child(even) {
+    background-color: #fafafa;
+  }
+  
+  .list-item:nth-child(even):hover {
+    background-color: #f5f7fa;
+  }
+  
+  .list-cell {
+    flex: 1;
+    padding: 0 8px;
+    color: #606266;
+  }
+  
+  .achievement-name {
+    font-weight: 500;
+    color: #303133;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  
+  .edit-btn, .delete-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+  }
+  
+  .edit-btn {
+    background-color: #f0f9ff;
+    color: #1890ff;
+    border: 1px solid #d6e9ff;
+  }
+  
+  .edit-btn:hover {
+    background-color: #e6f7ff;
+    color: #0076e4;
+  }
+  
+  .delete-btn {
+    background-color: #fff0f0;
+    color: #f56c6c;
+    border: 1px solid #ffd6d6;
+  }
+  
+  .delete-btn:hover {
+    background-color: #fef0f0;
+    color: #e64242;
+  }
+  
+  /* Status badge in list view */
+  .list-cell .status-badge {
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+  }
+  
+  /* 待审核状态 */
+  .list-cell .status-badge.pending {
+    background-color: #fff3e0;
+    color: #ff9800;
+    border: 1px solid #ffe0b2;
+    animation: pulsePending 1.5s infinite;
+  }
+  
+  /* 已发布状态 */
+  .list-cell .status-badge.published {
+    background-color: #e8f5e9;
+    color: #4caf50;
+    border: 1px solid #c8e6c9;
+    animation: pulsePublished 1.5s infinite;
+  }
+  
+  @keyframes pulsePending {
+    0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.2); }
+    70% { box-shadow: 0 0 0 8px rgba(255, 152, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+  }
+  
+  @keyframes pulsePublished {
+    0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.2); }
+    70% { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+  }
+  
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: modalFadeIn 0.3s ease;
+  }
+  
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .modal-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .modal-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    font-size: 20px;
+    transition: color 0.3s ease;
+  }
+  
+  .modal-close-btn:hover {
+    color: #333;
+  }
+  
+  .modal-body {
+    margin-bottom: 20px;
+  }
+  
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  
+  .statistics {
+    margin-left: 20px;
+    display: flex;
+    gap: 15px;
+  }
+  
+  .stat-item {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  .stat-item:nth-child(1) { /* 成果总数 */
+    background-color: #f0f9ff;
+    color: #409eff;
+    border: 1px solid #d6e9ff;
+  }
+  
+  .stat-item:nth-child(2) { /* 待审核 */
+    background-color: #fff0f0;
+    color: #f56c6c;
+    border: 1px solid #ffd6d6;
+  }
+  
+  .stat-item:nth-child(3) { /* 已发布 */
+    background-color: #e8f5e9;
+    color: #67c23a;
+    border: 1px solid #c2e7b0;
+  }
+  
+  .pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-top: 1px solid #ebeef5;
+  }
+  
+  .page-size-select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .page-size-select select {
+    padding: 6px 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+  }
+  
+  .page-buttons {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .page-btn {
+    padding: 6px 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .page-btn:hover:not(:disabled) {
+    background-color: #f5f7fa;
+    border-color: #c0c4cc;
+  }
+  
+  .page-info {
+    font-size: 14px;
+    color: #606266;
+  }
+  
+  /* Remove card view related styles */
+  .card-container,
+  .achievement-card,
+  .card-header,
+  .card-body,
+  .info-row,
+  .card-actions {
+    display: none;
+  }
+  </style>
+  

@@ -134,35 +134,20 @@
 
         <el-row :gutter="20">
           <el-col :span="8">
-            <el-form-item label="项目ID" prop="projectId">
-              <el-input-number 
-                v-model="formData.projectId" 
-                :min="0"
-                placeholder="请输入项目ID"
+            <el-form-item label="项目" prop="projectId">
+              <el-select
+                v-model="formData.projectId"
+                placeholder="请选择项目"
                 class="w-100"
-              ></el-input-number>
-            </el-form-item>
-          </el-col>
-          
-          <el-col :span="8">
-            <el-form-item label="用户ID" prop="userId">
-              <el-input-number 
-                v-model="formData.userId" 
-                :min="0"
-                placeholder="请输入用户ID"
-                class="w-100"
-              ></el-input-number>
-            </el-form-item>
-          </el-col>
-          
-          <el-col :span="8">
-            <el-form-item label="模板ID" prop="templateId">
-              <el-input-number 
-                v-model="formData.templateId" 
-                :min="0"
-                placeholder="请输入模板ID"
-                class="w-100"
-              ></el-input-number>
+                clearable
+              >
+                <el-option
+                  v-for="project in projects"
+                  :key="project.projectId"
+                  :label="project.projectName"
+                  :value="project.projectId"
+                ></el-option>
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
@@ -183,10 +168,11 @@
 import { ref, reactive, nextTick, onMounted } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import Upload from './Upload.vue'
 import { addAchievement, getAllOrganizations } from '../../api/upload'
 //import  {add} from "../api/upload";
+import { getAllProjects } from '../../api/project' // 新增导入
 
 //导入上传组件
 // 表单引用
@@ -232,14 +218,14 @@ const formData = reactive({
   description: '',
   highlights: '',
   version: '',
-  achievementBelongingOrganization: null,
+  achievementBelongingOrganization: { id: null, name: '' },
   projectId: null,
-  userId: null,
-  templateId: null,
+  userId: localStorage.getItem('userId') || null,
+  userName: localStorage.getItem('username') || '',
   category: '',
   techType: ''
 })
-
+console.log("formData-Ach_info",formData)
 // 表单验证规则
 const rules = {
   title: [
@@ -322,10 +308,64 @@ const fetchOrganizations = async () => {
   }
 }
 
+const projects = ref([])
+
+// 添加获取项目数据的函数
+const fetchProjects = async () => {
+  try {
+    const response = await getAllProjects()
+    console.log("project response",response)
+    if (response) {
+      projects.value = response.map(item => ({
+        projectId: item.projectId,
+        projectName: item.projectName // 根据实际接口返回的字段名调整
+      }))
+      console.log("projects", projects.value)
+    }
+  } catch (error) {
+    console.error('Failed to fetch projects:', error)
+    ElMessage.error('获取项目列表失败')
+  }
+}
 // 在组件挂载时加载数据
 onMounted(() => {
   loadSavedData()
   fetchOrganizations()
+  fetchProjects()
+  formData.userId = localStorage.getItem('userId') || null
+  formData.userName = localStorage.getItem('username') || ''
+
+  // 新增：从路由参数中获取并填充数据
+  const route = useRoute()
+  console.log('Route query:', route.query) // 调试信息
+  
+  if (route.query.id) {
+    console.log('Filling form data from route query') // 调试信息
+    formData.title = route.query.title || ''
+    formData.type = route.query.type || ''
+    formData.description = route.query.description || ''
+    formData.version = route.query.version || ''
+    formData.achievementBelongingOrganization = {
+      id: route.query.achievementBelongingOrganization?.id || null,
+      name: route.query.achievementBelongingOrganization?.name || ''
+    }
+    formData.projectId = route.query.projectId || null
+    formData.category = route.query.category || ''
+    formData.techType = route.query.techType || ''
+    formData.highlights = route.query.highlights || ''
+    formData.fileCount = route.query.fileCount || 1
+    
+    // 调试信息：打印填充后的表单数据
+    console.log('Form data after filling:', JSON.parse(JSON.stringify(formData)))
+  } else {
+    console.log('No route query id found') // 调试信息
+  }
+  
+  // 调试信息：打印当前的组织和项目数据
+  nextTick(() => {
+    console.log('Organizations:', organizations.value)
+    console.log('Projects:', projects.value)
+  })
 })
 
 // 添加清除表单方法
@@ -349,10 +389,8 @@ const clearForm = () => {
         description: '',
         highlights: '',
         version: '',
-        achievementBelongingOrganization: null,
-        projectId: null,
-        userId: null,
-        templateId: null
+        achievementBelongingOrganization: { id: null, name: '' },
+        projectId: null
       })
       localStorage.removeItem('draftFormData')
       ElMessage.success('已清除所有信息')
