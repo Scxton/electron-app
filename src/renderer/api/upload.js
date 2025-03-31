@@ -25,6 +25,9 @@ export function addAchievement(achievementData) {
 
 
 export function addFile(files, achievementData) {
+  
+  console.log('[API]开始提交投诉请求:', { files, achievementData })
+  
     const formData = new FormData()
     
     // 添加文件
@@ -38,6 +41,7 @@ export function addFile(files, achievementData) {
       { type: 'application/json' }
     )
     formData.append('achievementTable', achievementBlob)
+    console.log('formData', formData)
 
     return request({
       url: '/achievement/uploadtoAudit',
@@ -88,5 +92,38 @@ export function getAllOrganizations() {
         url: 'organizationInfo/queryAll',
         mock: false
     })
+}
+
+export function upgradeToAudit(files, achievementId, newVersion) {
+  console.log('[API]开始提交更新:', { files, achievementId, newVersion })
+  const formData = new FormData()
+  
+  // 添加文件
+  files.forEach(file => {
+    formData.append('file', file)
+  })
+  const achievementIdBlob = new Blob(
+    [JSON.stringify(achievementId)],
+    { type: 'application/json' }
+  )
+  const newVersionBlob = new Blob(
+    [JSON.stringify(newVersion)],
+    { type: 'application/json' }
+  )
+
+  // 添加成果ID和新版本号
+  formData.append('achievementId', achievementIdBlob)
+  // formData.append('newVersion', newVersionBlob)
+  formData.append('newVersion', newVersion)
+  console.log('formData', formData)
+
+  return request({
+    url: '/achievement/upgradetoAudit',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
 }
 

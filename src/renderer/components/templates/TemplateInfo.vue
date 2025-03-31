@@ -293,7 +293,7 @@ const saveTemplate = async () => {
         
         // Add log for template update
         await addLog({
-            userId: currentTemplate.value.userId,
+            userId: localStorage.getItem('userId'),
             logIntro: `更新模板: ${currentTemplate.value.templateName}`,
             logTime: new Date().toISOString().split('T')[0],
             tableStatus: true

@@ -53,7 +53,7 @@ export function addCompany(data) {
     tableStatus: true
   };
   
-  return request({
+  return request({ 
     url: '/organizationInfo/add',
     method: 'post',
     data: apiData
@@ -108,16 +108,65 @@ export function deleteCompany(id) {
     throw error;
   });
 }
+
 export function fuzzySearchAchievements(searchBody) {
 
-  console.log('[API] 发送模糊搜索请求:', {
-    url: '/achievementTable/fuzzyQuery',
-    searchBody: searchBody
-  })
+  // console.log('[API] 发送模糊搜索请求:', {
+  //   url: '/achievementTable/fuzzyQuery',
+  //   searchBody: searchBody
+  // })
   return request({
     url: '/achievementTable/fuzzyQuery',
     method: 'post',
     data: searchBody
   })
+}
+
+// 获取所有下载记录
+export function getAllDownloadRecords() {
+  return request({
+    url: '/downloadRecords/queryAll',
+    method: 'get'
+  }).then(response => {
+    logApiCall('getAllDownloadRecords', null, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - getAllDownloadRecords:', error);
+    throw error;
+  });
+}
+
+// 根据机构ID获取项目数量
+export function countProjectsByOrganizationId(organizationId) {
+  console.log('[API] 发送获取项目数量请求:', {
+    url: '/countProjectsByOrganizationId',
+    params: { organizationId }
+  })
+  return request({
+    url: '/projectRecords/countProjectsByOrganizationId',
+    method: 'get',
+    params:  {organizationId} 
+  }).then(response => {
+    logApiCall('countProjectsByOrganizationId', { organizationId }, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - countProjectsByOrganizationId:', error);
+    throw error;
+  });
+}  
+
+// 根据机构ID获取成果数量
+export function countAchievementsByOrganizationId(organizationId) {
+  return request({
+    url: '/projectRecords/countAchievementsByOrganizationId',
+    method: 'get',
+    params: { organizationId }
+  }).then(response => {
+    logApiCall('countAchievementsByOrganizationId', { organizationId }, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - countAchievementsByOrganizationId:', error);
+    throw error;
+  });
 }
     

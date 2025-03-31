@@ -69,3 +69,32 @@ export function deleteLog(id) {
     throw error;
   });
 }
+
+// 获取所有日志记录
+export function queryAllLogs() {
+  return request({
+    url: '/logRecords/queryAll',
+    method: 'get'
+  }).then(response => {
+    logApiCall('queryAllLogs', {}, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - queryAllLogs:', error);
+    throw error;
+  });
+}
+
+// 分页获取日志记录
+export function queryAllLogsWithPagination(pageNum = 1, pageSize = 10) {
+  return request({
+    url: '/logRecords/queryAllWithPagination',
+    method: 'get',
+    params: { pageNum, pageSize }
+  }).then(response => {
+    logApiCall('queryAllLogsWithPagination', { pageNum, pageSize }, response);
+    return response;
+  }).catch(error => {
+    console.error('API Error - queryAllLogsWithPagination:', error);
+    throw error;
+  });
+}

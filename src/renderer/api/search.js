@@ -118,3 +118,31 @@ export function SearchsubjectAchievements(searchBody) {
     data: searchBody
   })
 }
+
+// Get version history by achievement ID
+export function getVersionHistoryById(achievementId) {
+  console.log('[API] 发送版本历史查询请求:', {
+    url: '/versionHistory/queryByAchievementId',
+    params: { achievementId }
+  })
+  return request({
+    url: `/versionHistory/queryByAchievementId`,
+    method: 'get',
+    params: { achievementId }
+  })
+}
+
+// Get version history with pagination
+export function getVersionHistoryWithPagination(versionHistory, pageNum = 1, pageSize = 10) {
+  console.log('[API] 发送分页版本历史查询请求:', {
+    url: '/versionHistory/querylimitWithPagination',
+    data: versionHistory,
+    params: { pageNum, pageSize }
+  })
+  return request({
+    url: '/versionHistory/querylimitWithPagination',
+    method: 'post',
+    data: versionHistory,
+    params: { pageNum, pageSize }
+  })
+}

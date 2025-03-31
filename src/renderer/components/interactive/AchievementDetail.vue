@@ -52,6 +52,11 @@
               <i class="el-icon-warning-outline"></i>
               <span>投诉</span>
             </div>
+            <!-- 添加历史版本按钮 -->
+            <div class="version-button" @click="showVersionHistory">
+              <i class="el-icon-time"></i>
+              <span>历史版本</span>
+            </div>
           </div>
           <div class="description">
             <i class="el-icon-document"></i>
@@ -196,6 +201,31 @@
             placeholder="请详细描述投诉原因..."
           />
         </el-form-item>
+        <el-form-item label="证明材料">
+          <el-upload
+            v-model:file-list="fileList"
+            multiple
+            :limit="5"
+            :before-upload="(file) => {
+              const isAllowed = ['image/jpeg', 'image/png', 'application/pdf'].includes(file.type);
+              if (!isAllowed) {
+                ElMessage.warning('仅支持上传图片（JPEG/PNG）和PDF格式的文件');
+              }
+              return isAllowed;
+            }"
+            :http-request="handleUpload"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">
+                仅支持上传图片（JPEG/PNG）和PDF格式的文件，最多5个文件
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <div class="contact-info">
+          如有其他需求请联系管理员：王老师，电话：12345
+        </div>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -203,6 +233,109 @@
           <el-button type="primary" @click="submitComplaintForm">提交投诉</el-button>
         </span>
       </template>
+    </el-dialog>
+
+    <!-- 修改历史版本对话框 -->
+    <el-dialog
+      v-model="isVersionDialogVisible"
+      title="历史版本"
+      width="70%"
+      class="version-history-dialog"
+    >
+      <template #header="{ close, titleId, titleClass }">
+        <div class="dialog-header">
+          <h3 :id="titleId" :class="titleClass">
+            <i class="el-icon-time"></i>
+            历史版本记录
+          </h3>
+          <el-button
+            class="close-btn"
+            type="text"
+            @click="close"
+          >
+            <i class="el-icon-close"></i>
+          </el-button>
+        </div>
+      </template>
+
+      <div class="version-history-content">
+        <el-table
+          v-loading="loadingVersions"
+          :data="versionHistory"
+          style="width: 100%"
+          :header-cell-style="{
+            background: '#f5f7fa',
+            color: '#606266',
+            fontWeight: 'bold'
+          }"
+          :row-class-name="tableRowClassName"
+        >
+          <el-table-column 
+            prop="versionNumber" 
+            label="版本号" 
+            width="120"
+            align="center"
+          >
+            <template #default="scope">
+              <span class="version-tag">{{ scope.row.versionNumber }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column 
+            prop="updateTime" 
+            label="更新时间" 
+            width="180"
+            align="center"
+          >
+            <template #default="scope">
+              <span class="update-time">{{ formatDate(scope.row.updateTime) }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column 
+            prop="updateContent" 
+            label="更新内容"
+            show-overflow-tooltip
+          >
+            <template #default="scope">
+              <div class="update-content">{{ scope.row.updateContent }}</div>
+            </template>
+          </el-table-column>
+
+          <!-- 添加下载操作列 -->
+          <el-table-column
+            label="操作"
+            width="100"
+            align="center"
+            fixed="right"
+          >
+            <template #default="scope">
+              <el-button
+                type="primary"
+                size="small"
+                @click="downloadVersion(scope.row)"
+                :loading="scope.row.downloading"
+              >
+                <i class="el-icon-download"></i>
+                下载
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="pagination-container" v-if="versionTotal > 0">
+          <el-pagination
+            v-model:current-page="versionCurrentPage"
+            v-model:page-size="versionPageSize"
+            :page-sizes="[5, 10, 20, 50]"
+            :total="versionTotal"
+            layout="total, sizes, prev, pager, next"
+            @size-change="handleVersionSizeChange"
+            @current-change="handleVersionPageChange"
+            background
+          />
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -223,6 +356,7 @@ import {
 } from '../../api/interaction'
 import { submitComplaint } from '../../api/patentComplaints'
 import { addLog } from '../../api/log'
+import { getVersionHistoryWithPagination } from '../../api/search'
 
 const router = useRouter()
 const route = useRoute()
@@ -328,6 +462,16 @@ const complaintForm = ref({
   tableStatus: true,
 });
 
+// 在data/ref中添加文件列表
+const fileList = ref([])
+
+// 添加版本历史相关的响应式数据
+const isVersionDialogVisible = ref(false)
+const versionHistory = ref([])
+const loadingVersions = ref(false)
+const versionCurrentPage = ref(1)
+const versionPageSize = ref(10)
+const versionTotal = ref(0)
 
 // 修改获取成果评价数据的方法
 const fetchReviews = async (achievementId) => {
@@ -691,10 +835,21 @@ const showComplaintDialog = () => {
  isComplaintDialogVisible.value = true
 }
 
-// 提交投诉表单
+// 修改后的submitComplaintForm方法
 const submitComplaintForm = async () => {
   console.log('开始提交投诉表单')
   
+  // 获取选择的文件
+  const selectedFiles = fileList.value.map(file => file.raw || file) // 获取原始文件对象
+  const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf']
+  
+  // 检查文件类型
+  const invalidFiles = selectedFiles.filter(file => !allowedTypes.includes(file.type))
+  if (invalidFiles.length > 0) {
+    ElMessage.warning('仅支持上传图片（JPEG/PNG）和PDF格式的文件')
+    return
+  }
+
   if (!complaintForm.value.complaintType || !complaintForm.value.complaintIntro) {
     console.warn('表单验证失败：类型或说明为空')
     ElMessage.warning('请填写完整的投诉信息')
@@ -712,20 +867,21 @@ const submitComplaintForm = async () => {
     const today = new Date();
     const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    // const complaintData = {
-    //   complaintId: 1,
-    //   intellectualPropertyId: 22,
-    //   complaintTime: formattedDate, 
-    //   userId: parseInt(userId),
-    //   complaintProcess: 0,
-    //   tableStatus: true,
-    //   complaintType: complaintForm.value.complaintType,
-    //   complaintIntro: complaintForm.value.complaintIntro
-    // }
+    // 准备投诉数据
+    const complaintData = {
+      intellectualPropertyId: achievementId,
+      complaintTime: formattedDate, 
+      userId: parseInt(userId),
+      complaintProcess: 0,
+      tableStatus: true,
+      complaintType: complaintForm.value.complaintType,
+      complaintIntro: complaintForm.value.complaintIntro
+    }
     
-    console.log('准备提交的投诉数据:', complaintForm.value)
+    console.log('准备提交的投诉数据:', complaintData)
 
-    const response = await submitComplaint(complaintForm.value)
+    // 调用支持文件上传的API
+    const response = await submitComplaint(selectedFiles, complaintData)
     console.log('投诉提交响应:', response)
     
     if (response) {
@@ -737,6 +893,7 @@ const submitComplaintForm = async () => {
         complaintType: '',
         complaintIntro: ''
       }
+      fileList.value = [] // 清空文件列表
       console.log('表单已重置')
     } else {
       console.error('投诉提交失败:', response)
@@ -751,6 +908,145 @@ const submitComplaintForm = async () => {
       stack: error.stack
     })
     ElMessage.error('提交投诉失败: ' + (error.message || '未知错误'))
+  }
+}
+
+// 添加自定义上传方法
+const handleUpload = async (options) => {
+  const { file, onSuccess, onError } = options;
+  
+  try {
+    // 这里可以添加文件上传逻辑
+    // 由于我们会在submitComplaintForm中统一上传，这里只需标记文件为成功
+    onSuccess();
+  } catch (error) {
+    onError(error);
+  }
+}
+
+// 获取版本历史数据
+const fetchVersionHistory = async () => {
+  // 从路由参数或当前成果对象中获取成果ID
+  const achievementId = route.params.id || 
+                       (achievement.value && achievement.value.id) || 
+                       route.query.id
+  
+  if (!achievementId) {
+    ElMessage.warning('无法获取成果ID')
+    return
+  }
+  
+  loadingVersions.value = true
+  try {
+    const versionHistoryData = {
+      achievementId: achievementId  // 使用当前成果的ID
+    }
+    
+    console.log('Fetching version history for achievement:', achievementId)
+    
+    const response = await getVersionHistoryWithPagination(
+      versionHistoryData, 
+      versionCurrentPage.value, 
+      versionPageSize.value
+    )
+    
+    console.log('Version history response:', response)
+    
+    if (Array.isArray(response)) {
+      versionHistory.value = response
+      versionTotal.value = response.length
+    } else if (response && Array.isArray(response.data)) {
+      versionHistory.value = response.data
+      versionTotal.value = response.total || response.data.length
+    } else {
+      versionHistory.value = []
+      versionTotal.value = 0
+    }
+  } catch (error) {
+    console.error('Error fetching version history:', error)
+    ElMessage.error('获取版本历史失败')
+    versionHistory.value = []
+    versionTotal.value = 0
+  } finally {
+    loadingVersions.value = false
+  }
+}
+
+// 显示版本历史对话框
+const showVersionHistory = () => {
+  isVersionDialogVisible.value = true
+  fetchVersionHistory()
+}
+
+// 处理版本历史分页变化
+const handleVersionPageChange = (newPage) => {
+  versionCurrentPage.value = newPage
+  fetchVersionHistory()
+}
+
+const handleVersionSizeChange = (newSize) => {
+  versionPageSize.value = newSize
+  versionCurrentPage.value = 1
+  fetchVersionHistory()
+}
+
+// 添加表格行的样式
+const tableRowClassName = ({ row, rowIndex }) => {
+  return rowIndex % 2 === 0 ? 'even-row' : 'odd-row'
+}
+
+// 添加下载版本方法
+const downloadVersion = async (version) => {
+  if (!achievement.value) return
+  
+  try {
+    const achievementId = route.params.id || 
+                          (achievement.value && achievement.value.id) || 
+                          route.query.id
+    
+    if (!achievementId) {
+      ElMessage.error('成果ID不存在，无法下载')
+      return
+    }
+    
+    // 获取当前用户ID
+    const userId = localStorage.getItem('userId') || '1'
+    
+    // 步骤1：提交下载表单
+    console.log('提交下载表单:', achievementId, userId)
+    const submitResult = await submitDownloadForm(achievementId, userId)
+    console.log('下载表单提交结果:', submitResult)
+    // 构造文件名：成果名称+版本号+.zip
+    const fileName = `${achievement.value.title}${version.versionNumber}.zip`
+    
+    console.log('Downloading version file:', fileName)
+    
+    // 调用下载API
+    await downloadAchievements(fileName)
+    
+    // 显示成功消息
+    ElMessage({
+      message: '文件开始下载',
+      type: 'success',
+      duration: 2000,
+      showClose: true
+    })
+    
+    // 记录下载日志
+    await addLog({
+      userId: localStorage.getItem('userId'),
+      logIntro: `下载成果版本: ${achievement.value.title} (${version.versionNumber})`,
+      logTime: new Date().toISOString().split('T')[0],
+      tableStatus: true
+    })
+  } catch (error) {
+    console.error('Error downloading version:', error)
+    ElMessage({
+      message: '下载失败，请稍后重试',
+      type: 'error',
+      duration: 3000,
+      showClose: true
+    })
   }
 }
 
@@ -1189,5 +1485,161 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1rem;
+}
+
+.contact-info {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  color: #606266;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.version-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #909399;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: #606266;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  i {
+    font-size: 1.1rem;
+  }
+}
+
+// 版本历史表格样式
+.el-table {
+  margin-bottom: 1rem;
+}
+
+// 添加新的样式
+.version-history-dialog {
+  :deep(.el-dialog__body) {
+    padding: 20px;
+  }
+  
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    background: #f5f7fa;
+    border-bottom: 1px solid #e4e7ed;
+    margin: -20px -20px 20px;
+    
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #303133;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      i {
+        color: #409EFF;
+      }
+    }
+    
+    .close-btn {
+      padding: 0;
+      font-size: 20px;
+      
+      &:hover {
+        color: #409EFF;
+      }
+    }
+  }
+  
+  .version-history-content {
+    .version-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #409EFF;
+      color: white;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    
+    .update-time {
+      color: #606266;
+    }
+    
+    .update-content {
+      line-height: 1.5;
+      color: #303133;
+      
+      &:hover {
+        color: #409EFF;
+      }
+    }
+  }
+  
+  :deep(.el-table) {
+    border-radius: 8px;
+    overflow: hidden;
+    
+    .even-row {
+      background-color: #fafafa;
+    }
+    
+    .odd-row {
+      background-color: white;
+    }
+    
+    tr:hover > td {
+      background-color: #f0f7ff !important;
+    }
+  }
+  
+  .pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    
+    :deep(.el-pagination) {
+      padding: 0;
+      button:not(:disabled) {
+        background-color: #f4f4f5;
+        
+        &:hover {
+          color: #409EFF;
+        }
+      }
+      
+      .el-pagination__sizes {
+        margin-right: 15px;
+      }
+    }
+  }
+}
+
+// 添加下载按钮样式
+.el-button {
+  padding: 6px 12px;
+  
+  &.el-button--small {
+    font-size: 12px;
+  }
+  
+  i {
+    margin-right: 4px;
+  }
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
 }
 </style>

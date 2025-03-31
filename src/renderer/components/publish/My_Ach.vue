@@ -73,6 +73,10 @@
             <span>{{ achievement.organizationName }}</span>
           </div>
           <div class="info-row">
+            <span class="label">版本:</span>
+            <span>{{ achievement.achievementVersion || '1.0' }}</span>
+          </div>
+          <div class="info-row">
             <span class="label">下载次数:</span>
             <span>{{ achievement.achievementDownloadCount }}</span>
           </div>
@@ -82,8 +86,8 @@
           </div>
         </div>
         <div class="card-actions">
-          <button class="edit-btn" @click="editAchievement(achievement)">
-            <i class="fas fa-edit"></i> 修改
+          <button class="update-btn" @click="showUpdateDialog(achievement)">
+            <i class="fas fa-arrow-up"></i> 更新版本
           </button>
         </div>
       </div>
@@ -94,15 +98,19 @@
         <div class="list-column" style="font-weight: bold; text-align: center;">成果名称</div>
         <div class="list-column" style="font-weight: bold; text-align: center;">类型</div>
         <div class="list-column" style="font-weight: bold; text-align: center;">单位</div>
+        <div class="list-column" style="font-weight: bold; text-align: center;">版本</div>
         <div class="list-column" style="font-weight: bold; text-align: center;">状态</div>
         <div class="list-column" style="font-weight: bold; text-align: center;">下载次数</div>
         <div class="list-column" style="font-weight: bold; text-align: center;">上传时间</div>
         <div class="list-column" style="font-weight: bold; text-align: center;">操作</div>
       </div>
       <div class="list-item" v-for="achievement in paginatedAchievements" :key="achievement.id">
-        <div class="list-cell achievement-name">{{ achievement.achievementName }}</div>
+        <div class="list-cell achievement-name" @click="showVersionHistory(achievement)">
+          {{ achievement.achievementName }}
+        </div>
         <div class="list-cell">{{ translateCategory(achievement.achievementCategory) }}</div>
         <div class="list-cell">{{ achievement.organizationName }}</div>
+        <div class="list-cell">{{ achievement.achievementVersion || '1.0' }}</div>
         <div class="list-cell">
           <span :class="['status-badge', getStatusClass(achievement.auditFlag)]">
             {{ getStatus(achievement.auditFlag) }}
@@ -111,12 +119,9 @@
         <div class="list-cell">{{ achievement.achievementDownloadCount }}</div>
         <div class="list-cell">{{ formatDate(achievement.uploadTime) }}</div>
         <div class="list-cell actions">
-          <button class="edit-btn" @click="editAchievement(achievement)">
-            编辑
+          <button class="update-btn" @click="showUpdateDialog(achievement)">
+            更新版本
           </button>
-          <!-- <button class="delete-btn">
-            删除
-          </button> -->
         </div>
       </div>
       <div class="pagination-controls">
@@ -147,13 +152,136 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-overlay" v-if="showUpdateModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">更新版本</h3>
+          <button class="modal-close-btn" @click="showUpdateModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">成果名称</label>
+            <div class="info-display">{{ selectedAchievement?.achievementName }}</div>
+          </div>
+          <div class="form-group version-group">
+            <div class="version-item">
+              <label class="form-label">当前版本</label>
+              <div class="info-display current-version">
+                <span class="version-tag">v{{ selectedAchievement?.achievementVersion || '1.0' }}</span>
+              </div>
+            </div>
+            <div class="version-item">
+              <label class="form-label">新版本 <span class="required">*</span></label>
+              <input 
+                type="text" 
+                v-model="newVersion" 
+                class="version-input" 
+                placeholder="请输入新版本号"
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">上传文件 <span class="required">*</span></label>
+            <div class="file-upload-wrapper">
+              <input 
+                type="file" 
+                multiple 
+                @change="handleFileChange" 
+                class="file-input"
+                accept=".pdf,.doc,.docx,.zip,.rar"
+              />
+              <div class="file-upload-prompt">
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                <div class="upload-text">
+                  <span class="primary-text">点击或拖拽文件到此区域上传</span>
+                  <span class="secondary-text">支持 PDF、Word、压缩包等格式</span>
+                </div>
+              </div>
+            </div>
+            <div class="selected-files" v-if="updateFiles.length > 0">
+              <div class="file-item" v-for="(file, index) in updateFiles" :key="index">
+                <i class="fas fa-file-alt"></i>
+                <span class="file-name">{{ file.name }}</span>
+                <button class="remove-file" @click="removeFile(index)">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn cancel-btn" @click="showUpdateModal = false">取消</button>
+          <button class="btn primary-btn" @click="submitUpdate">
+            <i class="fas fa-arrow-up"></i> 提交更新
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showVersionHistoryModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">版本历史</h3>
+          <button class="modal-close-btn" @click="showVersionHistoryModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="version-history-list">
+            <div v-if="loadingVersions" class="loading-state">加载中...</div>
+            <div v-else-if="versionHistory.length === 0" class="empty-state">暂无版本历史</div>
+            <div v-else v-for="version in versionHistory" :key="version.id" class="version-item">
+              <div class="version-info">
+                <span class="version-number">{{ version.versionNumber }}</span>
+                <span class="version-date">{{ formatDate(version.updateTime) }}</span>
+                <button class="download-btn" @click="downloadVersion(version)">
+                  <i class="fas fa-download"></i> 下载
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="pagination-controls" v-if="versionHistory.length > 0">
+            <div class="page-size-select">
+              <label>每页显示:</label>
+              <select v-model="versionPageSize" @change="handleVersionSizeChange">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+            </div>
+            <div class="page-buttons">
+              <button 
+                class="page-btn" 
+                :disabled="versionCurrentPage === 1"
+                @click="handleVersionCurrentChange(versionCurrentPage - 1)"
+              >
+                上一页
+              </button>
+              <span class="page-info">
+                第 {{ versionCurrentPage }} 页 / 共 {{ Math.ceil(versionTotal / versionPageSize) }} 页
+              </span>
+              <button 
+                class="page-btn" 
+                :disabled="versionCurrentPage >= Math.ceil(versionTotal / versionPageSize)"
+                @click="handleVersionCurrentChange(versionCurrentPage + 1)"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { queryAll } from '../../api/achieveInfo.js'
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { upgradeToAudit } from '../../api/upload.js'
+import { getVersionHistoryWithPagination } from '../../api/search'
+import { downloadAchievements } from '../../api/download.js'
+import { ElMessage } from 'element-plus'
 
 export default {
   setup() {
@@ -170,20 +298,36 @@ export default {
     const totalPages = ref(1)
     const paginatedAchievements = ref([])
     const searchQuery = ref('')
+    const showUpdateModal = ref(false)
+    const selectedAchievement = ref(null)
+    const newVersion = ref('')
+    const updateFiles = ref([])
+    const showVersionHistoryModal = ref(false)
+    const currentAchievement = ref(null)
+    const versionHistory = ref([])
+    const versionCurrentPage = ref(1)
+    const versionPageSize = ref(10)
+    const versionTotal = ref(0)
+    const loadingVersions = ref(false)
+    const previousAchievements = ref(new Map()) // 存储上一次的成果状态
 
     const updateStatistics = (achievements) => {
       totalCount.value = achievements.length
-      pendingCount.value = achievements.filter(a => a.auditFlag == 0).length
+      pendingCount.value = achievements.filter(a => a.auditFlag == 0||a.auditFlag ==2).length
       publishedCount.value = achievements.filter(a => a.auditFlag == 1).length
     }
 
     const fetchAchievements = async () => {
       try {
+        console.log('Fetching achievements...')
         const response = await queryAll()
-        console.log(response)
+        console.log('Fetched achievements:', response)
         allAchievements.value = response
+        
+        // 检查审核状态变化
+        checkAuditStatus(response)
+        
         filterAchievements()
-        // updateStatistics(allAchievements.value) // Update statistics
       } catch (error) {
         console.error('Error fetching achievements:', error)
       }
@@ -239,6 +383,8 @@ export default {
           return '待审核';
         case 1:
           return '已发布';
+        case 2:
+          return '待更新';
         default:
           return '待上传';
       }
@@ -250,6 +396,8 @@ export default {
           return 'pending';
         case 1:
           return 'published';
+        case 2:
+          return 'needs-update';
         default:
           return '';
       }
@@ -313,12 +461,214 @@ export default {
       }
     }
 
-    watch(achievements, () => {
-      updatePagination()
+    const showUpdateDialog = (achievement) => {
+      selectedAchievement.value = achievement
+      newVersion.value = ''
+      updateFiles.value = []
+      showUpdateModal.value = true
+    }
+
+    const handleFileChange = (event) => {
+      updateFiles.value = Array.from(event.target.files)
+    }
+    
+
+    const submitUpdate = async () => {
+      console.log('submitUpdate')
+      const selectedFiles = updateFiles.value.map(file => file.raw || file)
+      if (!newVersion.value) {
+        alert('请输入新版本号')
+        return
+      }
+      if (updateFiles.value.length === 0) {
+        alert('请选择要上传的文件')
+        return
+      }
+
+      try {
+        await upgradeToAudit(
+          selectedFiles,
+          selectedAchievement.value.achievementId,
+          newVersion.value
+        )
+        alert('版本更新成功')
+        showUpdateModal.value = false
+        fetchAchievements() // 刷新数据
+      } catch (error) {
+        console.error('版本更新失败:', error)
+        alert('版本更新失败')
+      }
+    }
+
+    const removeFile = (index) => {
+      updateFiles.value.splice(index, 1)
+    }
+
+    const showVersionHistory = async (achievement) => {
+      currentAchievement.value = achievement
+      showVersionHistoryModal.value = true
+      versionCurrentPage.value = 1
+      await fetchVersionHistory()
+    }
+
+    const fetchVersionHistory = async () => {
+      if (!currentAchievement.value) return
+      
+      loadingVersions.value = true
+
+      try {
+        const versionHistoryData = {
+          achievementId: currentAchievement.value.achievementId
+         
+        }
+        console.log(versionHistoryData)
+        const response = await getVersionHistoryWithPagination(
+          versionHistoryData,
+          versionCurrentPage.value,
+          versionPageSize.value
+        )
+        
+        if (Array.isArray(response)) {
+          versionHistory.value = response
+          versionTotal.value = response.length
+        } else if (response && Array.isArray(response.data)) {
+          versionHistory.value = response
+          versionTotal.value = response.total || response.data.length
+        } else {
+          versionHistory.value = []
+          versionTotal.value = 0
+        }
+      } catch (error) {
+        console.error('Error fetching version history:', error)
+        versionHistory.value = []
+        versionTotal.value = 0
+      } finally {
+        loadingVersions.value = false
+      }
+    }
+
+    const handleVersionSizeChange = (size) => {
+      versionPageSize.value = size
+      fetchVersionHistory()
+    }
+
+    const handleVersionCurrentChange = (page) => {
+      versionCurrentPage.value = page
+      fetchVersionHistory()
+    }
+
+    const downloadVersion = (version) => {
+      if (!currentAchievement.value) return;
+      
+      try {
+        // 构造文件名格式：成果名称+版本号+.zip
+        const fileName = `${currentAchievement.value.achievementName}${version.versionNumber}.zip`;
+        
+        console.log('Downloading version file:', fileName);
+        
+        // 调用下载API
+        downloadAchievements(fileName);
+        
+        // 显示成功消息
+        ElMessage({
+          message: '文件开始下载',
+          type: 'success',
+          duration: 2000,
+          showClose: true
+        });
+      } catch (error) {
+        console.error('Error downloading version:', error);
+        ElMessage({
+          message: '下载失败，请稍后重试',
+          type: 'error',
+          duration: 3000,
+          showClose: true
+        });
+      }
+    }
+
+    // 检查审核状态变化并显示通知
+    const checkAuditStatus = (currentAchievements) => {
+      console.log('Checking audit status for achievements:', currentAchievements)
+      console.log('Previous achievements state:', previousAchievements.value)
+      
+      currentAchievements.forEach(achievement => {
+        const prev = previousAchievements.value.get(achievement.achievementId)
+        console.log(`Checking achievement: ${achievement.achievementName}`, {
+          current: {
+            id: achievement.achievementId,
+            tableStatus: achievement.tableStatus,
+            auditFlag: achievement.auditFlag
+          },
+          previous: prev
+        })
+        
+        if (prev) {
+          // 检查是否通过审核
+          if (achievement.tableStatus && 
+              (prev.auditFlag === 0 || prev.auditFlag === 2) && 
+              achievement.auditFlag === 1) {
+            console.log('Audit passed condition met:', {
+              tableStatus: achievement.tableStatus,
+              prevAuditFlag: prev.auditFlag,
+              currentAuditFlag: achievement.auditFlag
+            })
+            ElMessage({
+              message: `您的成果"${achievement.achievementName} v${achievement.achievementVersion || '1.0'}"已通过审核`,
+              type: 'success',
+              duration: 5000
+            })
+          }
+          
+          // 检查是否被驳回
+          if (achievement.tableStatus && 
+              prev.auditFlag === 1 && 
+              achievement.auditFlag === 0) {
+            console.log('Audit rejected condition met:', {
+              tableStatus: achievement.tableStatus,
+              prevAuditFlag: prev.auditFlag,
+              currentAuditFlag: achievement.auditFlag
+            })
+            ElMessage({
+              message: `您的成果"${achievement.achievementName} v${achievement.achievementVersion || '1.0'}"已被驳回，请重新上传`,
+              type: 'error',
+              duration: 5000
+            })
+          }
+        } else {
+          console.log('No previous state found for achievement:', achievement.achievementId)
+        }
+        
+        // 更新存储的状态
+        previousAchievements.value.set(achievement.achievementId, {
+          auditFlag: achievement.auditFlag,
+          tableStatus: achievement.tableStatus
+        })
+      })
+    }
+
+    // 在组件卸载时保存状态
+    onUnmounted(() => {
+      console.log('Component unmounting, saving achievement states...')
+      // 可以考虑将状态保存到 localStorage
+      localStorage.setItem('previousAchievementStates', 
+        JSON.stringify(Array.from(previousAchievements.value.entries())))
     })
 
+    // 在组件挂载时恢复状态
     onMounted(() => {
+      console.log('Component mounting...')
+      // 尝试从 localStorage 恢复之前的状态
+      const savedStates = localStorage.getItem('previousAchievementStates')
+      if (savedStates) {
+        console.log('Found saved achievement states:', savedStates)
+        previousAchievements.value = new Map(JSON.parse(savedStates))
+      }
       fetchAchievements()
+    })
+
+    watch(achievements, () => {
+      updatePagination()
     })
 
     return {
@@ -342,7 +692,25 @@ export default {
       changePageSize,
       nextPage,
       prevPage,
-      searchQuery
+      searchQuery,
+      showUpdateModal,
+      selectedAchievement,
+      newVersion,
+      showUpdateDialog,
+      handleFileChange,
+      submitUpdate,
+      updateFiles,
+      removeFile,
+      showVersionHistoryModal,
+      versionHistory,
+      versionCurrentPage,
+      versionPageSize,
+      versionTotal,
+      loadingVersions,
+      showVersionHistory,
+      handleVersionSizeChange,
+      handleVersionCurrentChange,
+      downloadVersion
     }
   }
 }
@@ -541,6 +909,15 @@ export default {
   content: "✔️";
 }
 
+.status-badge.needs-update {
+  background-color: #fff0f0;
+  color: #f56c6c;
+}
+
+.status-badge.needs-update::before {
+  content: "🔄";
+}
+
 .card-body {
   padding: 16px;
 }
@@ -567,22 +944,26 @@ export default {
   text-align: right;
 }
 
-.edit-btn {
+.card-actions .update-btn {
   padding: 8px 16px;
-  background-color: #409eff;
-  color: #fff;
-  border: none;
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.edit-btn:hover {
-  background-color: #66b1ff;
+.card-actions .update-btn:hover {
+  background-color: #bae7ff;
+  color: #096dd9;
 }
 
-.edit-btn i {
-  margin-right: 6px;
+.card-actions .update-btn i {
+  font-size: 14px;
 }
 
 .list-container {
@@ -698,60 +1079,226 @@ export default {
 }
 
 .modal-content {
-  background-color: #fff;
-  border-radius: 12px;
-  padding: 24px;
   width: 90%;
-  max-width: 500px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: modalFadeIn 0.3s ease;
-}
-
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  max-width: 600px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .modal-title {
-  font-size: 18px;
-  font-weight: 500;
-  color: #333;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .modal-close-btn {
   background: none;
   border: none;
+  font-size: 24px;
+  color: #909399;
   cursor: pointer;
-  color: #666;
-  font-size: 20px;
-  transition: color 0.3s ease;
+  transition: color 0.2s;
 }
 
 .modal-close-btn:hover {
-  color: #333;
+  color: #606266;
 }
 
 .modal-body {
-  margin-bottom: 20px;
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.required {
+  color: #f56c6c;
+  margin-left: 4px;
+}
+
+.info-display {
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  color: #303133;
+  font-size: 14px;
+}
+
+.version-group {
+  display: flex;
+  gap: 24px;
+}
+
+.version-item {
+  flex: 1;
+}
+
+.current-version {
+  display: flex;
+  align-items: center;
+}
+
+.version-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #e6f7ff;
+  color: #1890ff;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.version-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.version-input:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
+.file-upload-wrapper {
+  position: relative;
+  border: 2px dashed #dcdfe6;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s;
+  background: #fafafa;
+}
+
+.file-upload-wrapper:hover {
+  border-color: #409eff;
+  background: #f5faff;
+}
+
+.upload-icon {
+  font-size: 32px;
+  color: #409eff;
+  margin-bottom: 12px;
+}
+
+.upload-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.primary-text {
+  color: #303133;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.secondary-text {
+  color: #909399;
+  font-size: 12px;
+}
+
+.selected-files {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.file-item i {
+  color: #409eff;
+  margin-right: 8px;
+}
+
+.file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: #909399;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.remove-file:hover {
+  color: #f56c6c;
 }
 
 .modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #ebeef5;
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s;
+}
+
+.cancel-btn {
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  color: #606266;
+}
+
+.cancel-btn:hover {
+  color: #409eff;
+  border-color: #c6e2ff;
+  background: #ecf5ff;
+}
+
+.primary-btn {
+  background: #409eff;
+  color: #fff;
+  border: none;
+}
+
+.primary-btn:hover {
+  background: #66b1ff;
 }
 
 .statistics {
@@ -886,5 +1433,88 @@ export default {
   .search-box {
     max-width: 100%;
   }
+}
+
+.update-btn {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.update-btn:hover {
+  background-color: #bae7ff;
+  color: #096dd9;
+}
+
+.version-history-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.version-item {
+  padding: 12px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.version-item:last-child {
+  border-bottom: none;
+}
+
+.version-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.version-number {
+  font-weight: 500;
+  color: #409eff;
+}
+
+.version-date {
+  color: #909399;
+  font-size: 0.9em;
+}
+
+.loading-state, .empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #909399;
+}
+
+.achievement-name {
+  cursor: pointer;
+  color: #409eff;
+}
+
+.achievement-name:hover {
+  text-decoration: underline;
+}
+
+.download-btn {
+  padding: 4px 12px;
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.download-btn:hover {
+  background-color: #bae7ff;
+  color: #096dd9;
+}
+
+.download-btn i {
+  font-size: 12px;
 }
 </style>

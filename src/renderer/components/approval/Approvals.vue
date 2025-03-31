@@ -64,7 +64,7 @@
           </el-col>
       </el-row>
 
-      <el-table :data="tableData" style="width: 100%" border
+      <el-table :data="paginatedData" style="width: 100%" border
           :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
           <el-table-column prop="id" label="案件编号" width="180" />
           <el-table-column prop="Pid" label="投诉专利编号" width="180" />
@@ -116,14 +116,13 @@
           </el-table-column>
           <el-table-column label="操作">
               <template #default="scope">
-                  <el-button size="small" type='success' @click="handleEdit(scope.$index, scope.row)">
-                      编辑
-                  </el-button>
+                 
                   <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
                       删除
                   </el-button>
-                  <el-button size="small" type="primary" @click="handleMore(scope.$index, scope.row)">
-                      进度
+                  
+                  <el-button size="small" type="info" @click="handleDownload(scope.$index, scope.row)">
+                      下载
                   </el-button>
                   <div>
                       <el-dialog title="知识产权投诉申请" :visible.sync="addDialogVisible">
@@ -164,9 +163,18 @@
           </el-table-column>
       </el-table>
 
-      <!-- <div class="input-and-button">
-          <el-button type="primary" @click="handleApply">投诉申请</el-button>
-      </div> -->
+      <div class="pagination-container">
+        <el-pagination
+          background
+          layout="total, sizes, prev, pager, next, jumper"
+          :page-sizes="[10, 15, 20]"
+          :page-size="pageSize"
+          :current-page="currentPage"
+          :total="total"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
 
   </el-col>
   <!-- <div class="pag">
@@ -189,7 +197,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMain, ElMessage, ElMessageBox } from 'element-plus';
-import { queryAllComplaints, updateComplaintStatus, deleteComplaint } from '../../api/patentComplaints';
+import { queryAllComplaints, updateComplaintStatus, deleteComplaint, downloadComplaintFile } from '../../api/patentComplaints';
 
 interface Complaint {
   id: string
@@ -198,6 +206,7 @@ interface Complaint {
   type: string
   other: string
   status: number
+  fileName?: string
 }
 
 const tableData = ref<Complaint[]>([]);
@@ -205,6 +214,28 @@ const loading = ref(true);
 const allComplaints = ref<Complaint[]>([]);
 const selectedType = ref('all');
 const selectedStatus = ref('all');
+
+// Add these new refs
+const currentPage = ref(1);
+const pageSize = ref(10);
+const total = computed(() => tableData.value.length);
+
+// Update the tableData computed property
+const paginatedData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return tableData.value.slice(start, end);
+});
+
+// Add pagination event handlers
+const handleSizeChange = (val: number) => {
+  pageSize.value = val;
+  currentPage.value = 1;
+};
+
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val;
+};
 
 // 获取所有投诉信息
 const fetchComplaints = async () => {
@@ -219,7 +250,8 @@ const fetchComplaints = async () => {
         user: item.userId,
         type: getComplaintTypeText(item.complaintType),
         other: item.complaintIntro,
-        status: item.complaintProcess
+        status: item.complaintProcess,
+        fileName: item.fileName
       }));
       allComplaints.value = mappedData;
       tableData.value = mappedData;
@@ -487,6 +519,25 @@ const completedCount = computed(() =>
   allComplaints.value.filter(complaint => complaint.status === 2).length
 );
 
+// 添加下载处理函数
+const handleDownload = async (index: number, row: Complaint) => {
+  try {
+    const fileName = row.fileName; // 直接从投诉信息中获取文件名
+    if (!fileName) {
+      ElMessage.warning('该投诉没有可下载的文件');
+      return;
+    }
+    await downloadComplaintFile(fileName);
+    ElMessage({
+      type: 'success',
+      message: '文件下载成功'
+    });
+  } catch (error) {
+    console.error('文件下载失败:', error);
+    ElMessage.error('文件下载失败');
+  }
+};
+
 </script>
 
 <style>
@@ -621,5 +672,12 @@ const completedCount = computed(() =>
   .statistics-row {
     padding: 0 20px;
   }
+}
+
+/* Add pagination styles */
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

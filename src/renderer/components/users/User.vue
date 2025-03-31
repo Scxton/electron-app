@@ -1,11 +1,26 @@
 <template>
     <div class="intellectual-property">
+        <!-- 新增统计图表区域 -->
+        <div class="chart-section">
+            <div ref="chartRef" style="width: 100%; height: 400px;"></div>
+        </div>
         <!-- 搜索栏 -->
         <div class="header-section">
             <el-button type="primary" @click="showAddDialog">
                 <el-icon style="margin-right: 8px;"><Plus /></el-icon>
                 添加产权
             </el-button>
+            <!-- 修改过期提示 -->
+            <div :class="['expiration-warning', isCollapsed ? 'collapsed' : '']" @click="toggleWarning">
+                <el-icon color="#F56C6C"><Warning /></el-icon>
+                <span v-if="!isCollapsed">
+                    有{{ expiredCount }}条产权已过期，请及时处理。
+                    <span class="view-link" @click.stop="showExpiredProperties">点击查看</span>
+                </span>
+                <el-icon class="close-icon" @click.stop="collapseWarning">
+                    <Close />
+                </el-icon>
+            </div>
             <el-input
                 v-model="searchText"
                 placeholder="请输入产权编号"
@@ -109,14 +124,26 @@
                 </el-form-item>
                 <el-form-item label="产权类型">
                     <el-select v-model="propertyForm.intellectualPropertyType" placeholder="请选择产权类型" style="width: 100%;">
-                        <el-option label="专利" value="专利" />
-                        <el-option label="商标" value="商标" />
-                        <el-option label="著作权" value="著作权" />
+                        <el-option label="发明专利" value="发明专利" />
+                        <el-option label="实用新型专利" value="实用新型专利" />
+                        <el-option label="外观设计专利" value="外观设计专利" />
                         <el-option label="其他" value="其他" />
                     </el-select>
                 </el-form-item>
                 <el-form-item label="所属单位">
-                    <el-input v-model="propertyForm.organizationName" />
+                    <el-select
+                        v-model="propertyForm.organizationId"
+                        placeholder="请选择所属单位"
+                        style="width: 100%;"
+                        filterable
+                    >
+                        <el-option
+                            v-for="org in organizationList"
+                            :key="org.organizationId"
+                            :label="org.organizationName"
+                            :value="org.organizationId"
+                        />
+                    </el-select>
                 </el-form-item>
                 <el-form-item label="生效时间">
                     <el-date-picker
@@ -156,16 +183,134 @@
 </template>
 
 <script setup>
-import { Search, Plus, ArrowDown } from '@element-plus/icons-vue'
-import { ref, onMounted, computed } from 'vue'
+import { Search, Plus, ArrowDown, Warning, Close, Expand } from '@element-plus/icons-vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { queryAll, queryAllWithPagination, addProperty, editProperty, deleteProperty as apiDeleteProperty } from "../../api/properties"
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { addLog } from '../../api/log'
+import * as echarts from 'echarts'
+import { getAllCompanies } from '../../api/companyInfo'
 
 const tableData = ref([])   //产权信息列表
 const total = ref(0)   //产权总数
 const currentPage = ref(1)  // 当前页码
 const pageSize = ref(10)  // 每页数量（可通过下拉框选择）
+
+// 新增图表相关代码
+const chartRef = ref(null)
+let chartInstance = null
+
+// 新增单位列表
+const organizationList = ref([]);
+
+// 获取单位信息
+const fetchOrganizations = async () => {
+    try {
+        const response = await getAllCompanies();
+        organizationList.value = response;
+    } catch (error) {
+        console.error('获取单位信息失败:', error);
+        ElMessage.error('获取单位信息失败');
+    }
+};
+
+// 统计专利类型数量
+const countPropertyTypes = (data) => {
+    const typeCounts = {
+        发明专利: 0,
+        实用新型专利: 0,
+        外观设计专利: 0
+    };
+    
+    data.forEach(item => {
+        if (typeCounts.hasOwnProperty(item.intellectualPropertyType)) {
+            typeCounts[item.intellectualPropertyType]++;
+        }
+    });
+    
+    return typeCounts;
+}
+
+// 初始化图表
+const initChart = () => {
+    if (chartRef.value) {
+        chartInstance = echarts.init(chartRef.value)
+        updateChart()
+    }
+}
+
+// 更新图表数据
+const updateChart = () => {
+    const typeCounts = countPropertyTypes(tableData.value);
+    
+    const option = {
+        title: {
+            text: '知识产权类型统计',
+            left: 'center',
+            textStyle: {
+                fontSize: 18,
+                fontWeight: 'bold'
+            }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow'
+            }
+        },
+        xAxis: {
+            type: 'category',
+            data: Object.keys(typeCounts),
+            axisLabel: {
+                fontSize: 14
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                fontSize: 14
+            }
+        },
+        series: [{
+            name: '数量',
+            type: 'bar',
+            data: Object.values(typeCounts),
+            itemStyle: {
+                color: (params) => {
+                    // 为不同类型设置不同颜色
+                    const colors = {
+                        '发明专利': '#5470C6',
+                        '实用新型专利': '#91CC75',
+                        '外观设计专利': '#EE6666',
+                        '其他': '#FAC858'
+                    };
+                    return colors[Object.keys(typeCounts)[params.dataIndex]] || '#73C0DE';
+                }
+            },
+            emphasis: {
+                itemStyle: {
+                    shadowBlur: 10,
+                    shadowOffsetX: 0,
+                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                }
+            },
+            barWidth: '40%'
+        }]
+    };
+    
+    chartInstance.setOption(option);
+};
+
+// 初始化时创建图表
+onMounted(() => {
+    initChart()
+    fetchOrganizations()
+})
+
+// 监听表格数据变化，更新图表
+watch(tableData, () => {
+    updateChart()
+}, { deep: true })
 
 //进入页面后，获取产权总数，获取第一页数据
 onMounted(async () => {
@@ -175,31 +320,31 @@ onMounted(async () => {
 })
 
 // 添加状态筛选相关的变量和方法
-const currentStatusFilter = ref('all');
+const currentStatusFilter = ref('all')
 
 // 修改 fetchData 方法
 const fetchData = async () => {
     try {
-        const allData = await queryAll();
+        const allData = await queryAll()
         // 根据状态筛选
-        let filteredData = allData;
+        let filteredData = allData
         if (currentStatusFilter.value === 'normal') {
-            filteredData = allData.filter(item => item.renewalStatus === true);
+            filteredData = allData.filter(item => item.renewalStatus === true)
         } else if (currentStatusFilter.value === 'expired') {
-            filteredData = allData.filter(item => item.renewalStatus === false);
+            filteredData = allData.filter(item => item.renewalStatus === false)
         }
         
         // 更新总数
-        total.value = filteredData.length;
+        total.value = filteredData.length
         
         // 手动进行分页
-        const start = (currentPage.value - 1) * pageSize.value;
-        const end = start + pageSize.value;
-        tableData.value = filteredData.slice(start, end);
+        const start = (currentPage.value - 1) * pageSize.value
+        const end = start + pageSize.value
+        tableData.value = filteredData.slice(start, end)
     } catch (error) {
-        console.error('Error fetching data: ', error);
+        console.error('Error fetching data: ', error)
     }
-};
+}
 
 const handlePageSizeChange = (newSize) => {
     currentPage.value = 1
@@ -219,117 +364,125 @@ const initTableData = async () => {
 }
 
 // 搜索文本
-const searchText = ref('');
+const searchText = ref('')
 
 // 过滤表格数据
 const filteredTableData = computed(() => {
-    if (!searchText.value) return tableData.value;
+    if (!searchText.value) return tableData.value
     return tableData.value.filter(item => 
         item.intellectualNo.includes(searchText.value)
-    );
-});
+    )
+})
 
 // 搜索过滤方法
 const filterTable = () => {
     // 如果需要特殊处理可以在这里添加逻辑
-};
+}
 
 // 续期对话框
-const renewDialogVisible = ref(false);
-const selectedProperty = ref({});
-const renewDate = ref('');
+const renewDialogVisible = ref(false)
+const selectedProperty = ref({})
+const renewDate = ref('')
 
 // 表格行样式
 const tableRowClassName = ({ row }) => {
-    return row.renewalStatus === false ? 'expired-row' : '';
-};
+    return row.renewalStatus === false ? 'expired-row' : ''
+}
 
 // 添加/编辑产权对话框
-const propertyDialogVisible = ref(false);
-const dialogMode = ref('add'); // 'add' 或 'edit'
+const propertyDialogVisible = ref(false)
+const dialogMode = ref('add') // 'add' 或 'edit'
 const propertyForm = ref({
     id: 'null',
     intellectualNo: '',
     intellectualName: '',
     projectNo: '',
     intellectualPropertyType: '',
+    organizationId: '',
     organizationName: '',
     applicationDate: '',
     expirationDate: '',
     tableStatus: true,
     auditFlag: 1,
     
-});
+})
 
 // 显示添加对话框
 const showAddDialog = () => {
-    dialogMode.value = 'add';
+    dialogMode.value = 'add'
     propertyForm.value = {
         intellectualNo: '',
         intellectualName: '',
         projectNo: '',
         intellectualPropertyType: '',
+        organizationId: '',
         organizationName: '',
         applicationDate: '',
         expirationDate: '',
         tableStatus: true,
         auditFlag: 1,
        
-    };
-    propertyDialogVisible.value = true;
-};
+    }
+    propertyDialogVisible.value = true
+}
 
 // 编辑操作
 const handleEditProperty = (row) => {
-    dialogMode.value = 'edit';
-    propertyForm.value = { ...row }; // 复制行数据到表单
-    propertyDialogVisible.value = true;
-};
+    dialogMode.value = 'edit'
+    propertyForm.value = { ...row } // 复制行数据到表单
+    propertyDialogVisible.value = true
+}
 
 // 保存产权信息
 const saveProperty = async () => {
     try {
+        // 获取选中的单位名称
+        const selectedOrg = organizationList.value.find(
+            org => org.organizationId === propertyForm.value.organizationId
+        );
+        propertyForm.value.organizationName = selectedOrg?.organizationName || '';
+        
         // 创建表单数据的副本，以便修改日期格式
-        const formData = { ...propertyForm.value };
+        const formData = { ...propertyForm.value }
         
         // 处理日期格式，添加固定的时分秒
         if (formData.applicationDate) {
-            formData.applicationDate = `${formData.applicationDate} 00:00:00`;
+            formData.applicationDate = `${formData.applicationDate} 00:00:00`
         }
         if (formData.expirationDate) {
-            formData.expirationDate = `${formData.expirationDate} 00:00:00`;
+            formData.expirationDate = `${formData.expirationDate} 00:00:00`
         }
         
         if (dialogMode.value === 'add') {
             // 调用添加API
-            await addProperty(formData);
-            ElMessage.success('添加产权信息成功');
+            await addProperty(formData)
+            ElMessage.success('添加产权信息成功')
             // 添加日志
             await addLog({
                 userId: localStorage.getItem('userId'),
                 logIntro: `添加产权信息：${propertyForm.value.intellectualName}`,
                 logTime: new Date().toISOString().split('T')[0],
                 tableStatus: true
-            });
+            })
         } else {
             // 调用编辑API
-            await editProperty(formData);
-            ElMessage.success('编辑产权信息成功');
+            await editProperty(formData)
+            ElMessage.success('编辑产权信息成功')
             // 添加日志
             await addLog({
                 userId: localStorage.getItem('userId'),
                 logIntro: `编辑产权信息：${propertyForm.value.intellectualName}`,
                 logTime: new Date().toISOString().split('T')[0],
                 tableStatus: true
-            });
+            })
         }
-        propertyDialogVisible.value = false;
+        propertyDialogVisible.value = false
         // 刷新表格数据
-        initTableData();
+        initTableData()
     } catch (error) {
-        ElMessage.error(`操作失败: ${error.message}`);
+        ElMessage.error(`操作失败: ${error.message}`)
     }
-};
+}
 
 
 // 删除操作
@@ -346,39 +499,38 @@ const deleteProperty = (row) => {
     )
     .then(async () => {
         try {
-            await apiDeleteProperty(row.intellectualPropertyId);
-            ElMessage.success('删除成功');
+            await apiDeleteProperty(row.intellectualPropertyId)
+            ElMessage.success('删除成功')
             // 添加日志
             await addLog({
                 userId: localStorage.getItem('userId'),
                 logIntro: `删除产权信息：${row.intellectualName}`,
                 logTime: new Date().toISOString().split('T')[0],
                 tableStatus: true
-            });
+            })
             // 刷新表格数据
-            initTableData();
+            initTableData()
         } catch (error) {
-            ElMessage.error(`删除失败: ${error.message}`);
+            ElMessage.error(`删除失败: ${error.message}`)
         }
     })
     .catch(() => {
-        ElMessage.info('已取消删除');
-    });
-};
+        ElMessage.info('已取消删除')
+    })
+}
 
 // 续期操作
 const renewProperty = (row) => {
-    selectedProperty.value = { ...row };
-    renewDate.value = ''; // 清空之前的日期
-    renewDialogVisible.value = true;
-};
+    selectedProperty.value = { ...row }
+    renewDate.value = '' // 清空之前的日期
+    renewDialogVisible.value = true
+}
 
 // 确认续期
 const confirmRenew = async () => {
     try {
         if (!renewDate.value) {
-            ElMessage.warning('请选择新的过期时间');
-            return;
+            ElMessage.warning('请选择新的过期时间')
         }
 
         // 创建要更新的数据对象
@@ -386,32 +538,61 @@ const confirmRenew = async () => {
             ...selectedProperty.value,
             expirationDate: `${renewDate.value} 00:00:00`,
             renewalStatus: true
-        };
+        }
 
         // 调用编辑API
-        await editProperty(updateData);
-        ElMessage.success('续期成功');
+        await editProperty(updateData)
+        ElMessage.success('续期成功')
         // 添加日志
         await addLog({
             userId: localStorage.getItem('userId'),
             logIntro: `续期产权信息：${selectedProperty.value.intellectualName}`,
             logTime: new Date().toISOString().split('T')[0],
             tableStatus: true
-        });
-        renewDialogVisible.value = false;
+        })
+        renewDialogVisible.value = false
         
         // 刷新表格数据
-        initTableData();
+        initTableData()
     } catch (error) {
-        ElMessage.error(`续期失败: ${error.message}`);
+        ElMessage.error(`续期失败: ${error.message}`)
     }
-};
+}
 
 // 添加状态筛选处理方法
 const handleStatusFilter = (command) => {
-    currentStatusFilter.value = command;
-    currentPage.value = 1; // 重置页码
-    fetchData();
+    currentStatusFilter.value = command
+    currentPage.value = 1 // 重置页码
+    fetchData()
+}
+
+// 计算过期产权数量
+const expiredCount = computed(() => {
+  return tableData.value.filter(item => item.renewalStatus === false).length;
+});
+
+// 修改状态控制
+const isCollapsed = ref(false);
+
+// 新增关闭并折叠函数
+const collapseWarning = () => {
+  isCollapsed.value = true;
+  handleStatusFilter('all');
+};
+
+// 修改切换提示函数
+const toggleWarning = () => {
+  if (isCollapsed.value) {
+    isCollapsed.value = false;
+  } else {
+    isCollapsed.value = !isCollapsed.value;
+  }
+};
+
+// 修改显示过期产权函数
+const showExpiredProperties = () => {
+  isCollapsed.value = false; // 确保提示信息展开
+  handleStatusFilter('expired');
 };
 </script>
 
@@ -570,6 +751,63 @@ const handleStatusFilter = (command) => {
 
 .el-dropdown-link:hover {
     color: #409EFF;
+}
+
+/* 新增图表区域样式 */
+.chart-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* 修改过期提示样式 */
+.expiration-warning {
+  margin-left: 20px;
+  padding: 8px 16px;
+  background-color: #fef0f0;
+  border-radius: 4px;
+  color: #f56C6C;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding-right: 40px; /* 为关闭按钮留出空间 */
+}
+
+/* 确保折叠状态下的点击区域 */
+.expiration-warning.collapsed {
+  cursor: pointer;
+  padding: 8px;
+  width: 40px;
+  justify-content: center;
+}
+
+.expiration-warning.collapsed .el-icon:not(.close-icon) {
+  margin-right: 0;
+}
+
+.expiration-warning.collapsed .view-link,
+.expiration-warning.collapsed > span {
+  display: none;
+}
+
+/* 修改关闭按钮样式 */
+.close-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s ease;
+}
+
+.close-icon:hover {
+  color: #909399;
 }
 </style>
 

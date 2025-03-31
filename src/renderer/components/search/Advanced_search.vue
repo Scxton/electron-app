@@ -137,7 +137,7 @@ import { fuzzySearchAchievements, preciseSearchAchievements } from '../../api/se
 const router = useRouter()
 
 // 热门关键词
-const hotWords = ['计算', '评估', '深度学习', '软件可重构', '硬件可重组']
+const hotWords = ['计算', '后端', '深度学习', '软件可重构', '硬件可重组']
 
 // 搜索表单数据
 const searchForm = reactive({

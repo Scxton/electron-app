@@ -86,3 +86,13 @@ export function update(useCase) {
         mock: false
     })
 }
+
+// 查询所有下载记录
+export function queryAllDownloadRecords() {
+    return request({
+        method: 'get',
+        url: '/downloadRecords/queryAll',
+        params: {},
+        mock: false
+    })
+}

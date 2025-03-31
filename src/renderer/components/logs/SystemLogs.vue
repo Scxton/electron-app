@@ -25,19 +25,49 @@
         >
           <i class="fas fa-plus"></i> 添加日志
         </button>
+        <button 
+          class="add-btn export-btn"
+          @click="exportLogs"
+        >
+          <i class="fas fa-download"></i> 导出日志
+        </button>
       </div>
     </div>
     
+    <!-- 将图表容器移动到最上方 -->
+    <div class="chart-container">
+      <div ref="chart" class="chart" style="width: 100%; height: 400px;"></div>
+    </div>
+
     <div class="list-container">
       <div class="list-header">
         <div class="list-column">日志ID</div>
+        <div class="list-column">操作用户</div>
         <div class="list-column">日志内容</div>
         <div class="list-column">记录时间</div>
+        <div class="list-column">操作</div>
       </div>
       <div class="list-item" v-for="log in paginatedLogs" :key="log.logId">
         <div class="list-cell">{{ log.logId }}</div>
+        <div class="list-cell">{{ log.userId }}</div>
         <div class="list-cell">{{ log.logIntro }}</div>
         <div class="list-cell">{{ formatDate(log.logTime) }}</div>
+        <div class="list-cell">
+          <el-button
+            type="primary"
+            size="small"
+            @click="showEditLogDialog(log)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleDeleteLog(log.logId)"
+          >
+            删除
+          </el-button>
+        </div>
       </div>
       <div class="pagination-controls">
         <div class="page-size-select">
@@ -99,13 +129,46 @@
         <el-button type="primary" @click="handleAddLog">确认</el-button>
       </template>
     </el-dialog>
+
+    <!-- 编辑日志弹窗 -->
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑日志"
+      width="30%"
+    >
+      <el-form :model="editForm" label-width="80px">
+        <el-form-item label="用户ID">
+          <el-input v-model="editForm.userId" />
+        </el-form-item>
+        <el-form-item label="日志内容">
+          <el-input 
+            v-model="editForm.logIntro" 
+            type="textarea"
+            :rows="3"
+          />
+        </el-form-item>
+        <el-form-item label="日志时间">
+          <el-date-picker
+            v-model="editForm.logTime"
+            type="date"
+            placeholder="选择日期"
+            value-format="YYYY-MM-DD"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleEditLog">确认</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { ref, onMounted, watch } from 'vue'
-import { addLog } from '../../api/log.js'
-import { ElMessage } from 'element-plus'
+import { addLog, queryAllLogs, deleteLog, updateLog } from '../../api/log.js'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import * as echarts from 'echarts'
 
 export default {
   setup() {
@@ -123,24 +186,24 @@ export default {
       logIntro: '',
       logTime: ''
     })
-
-    // 模拟日志数据
-    const mockLogs = [
-      { logId: 1, logIntro: '系统启动成功', logTime: Date.now() - 3600000 },
-      { logId: 2, logIntro: '用户登录成功', logTime: Date.now() - 1800000 },
-      { logId: 3, logIntro: '数据同步完成', logTime: Date.now() - 900000 },
-      { logId: 4, logIntro: '系统更新检查', logTime: Date.now() - 600000 },
-      { logId: 5, logIntro: '备份任务完成', logTime: Date.now() - 300000 },
-      // 可以继续添加更多模拟数据
-    ]
+    const editDialogVisible = ref(false)
+    const editForm = ref({
+      logId: '',
+      userId: '',
+      logIntro: '',
+      logTime: ''
+    })
+    const chart = ref(null)
 
     const fetchLogs = async () => {
       try {
-        // 使用模拟数据代替API调用
-        allLogs.value = mockLogs
-        filterLogs()
+        // Replace mock data with API call
+        const response = await queryAllLogs();
+        allLogs.value = response || [];
+        filterLogs();
       } catch (error) {
-        console.error('Error fetching logs:', error)
+        console.error('Error fetching logs:', error);
+        ElMessage.error('获取日志失败');
       }
     }
 
@@ -164,9 +227,7 @@ export default {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day} ${hours}:${minutes}`;
+      return `${year}-${month}-${day}`;
     }
 
     const updatePagination = () => {
@@ -242,8 +303,208 @@ export default {
       }
     }
 
+    const handleDeleteLog = async (logId) => {
+      try {
+        const confirm = await ElMessageBox.confirm(
+          '确定要删除这条日志吗？',
+          '警告',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+          }
+        );
+
+        if (confirm) {
+          console.log('开始调用deleteLog接口...',logId);
+          await deleteLog(logId);
+          ElMessage.success('日志删除成功');
+          await fetchLogs();
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('删除日志时发生错误:', error);
+          ElMessage.error('日志删除失败');
+        }
+      }
+    }
+
+    const showEditLogDialog = (log) => {
+      editForm.value = {
+        logId: log.logId,
+        userId: log.userId,
+        logIntro: log.logIntro,
+        logTime: new Date(log.logTime).toISOString().split('T')[0]
+      }
+      editDialogVisible.value = true
+    }
+
+    const handleEditLog = async () => {
+      try {
+        if (!editForm.value.userId || !editForm.value.logIntro || !editForm.value.logTime) {
+          ElMessage.warning('用户ID、日志内容和时间不能为空');
+          return;
+        }
+
+        const response = await updateLog(editForm.value);
+        if (response) {
+          ElMessage.success('日志更新成功');
+          editDialogVisible.value = false;
+          await fetchLogs();
+        }
+      } catch (error) {
+        console.error('更新日志时发生错误:', error);
+        ElMessage.error('日志更新失败');
+      }
+    }
+
+    const classifyLogs = (logs) => {
+      const categories = {
+        '成果操作': 0,
+        '单位操作': 0,
+        '模板操作': 0,
+        '投诉操作': 0,
+        '用户操作': 0,
+        '产权操作': 0,
+        '交互操作': 0
+      }
+
+      logs.forEach(log => {
+        if (log.logIntro.includes('单位')) {
+          categories['单位操作']++
+        } else if (log.logIntro.includes('模板')) {
+          categories['模板操作']++
+        } else if (log.logIntro.includes('成果')) {
+          categories['成果操作']++
+        } else if (log.logIntro.includes('投诉')) {
+          categories['投诉操作']++
+        } else if (log.logIntro.includes('用户')) {
+          categories['用户操作']++
+        } else if (log.logIntro.includes('产权')) {
+          categories['产权操作']++
+        } else if (log.logIntro.includes('评价')) {
+          categories['交互操作']++
+        }
+      })
+
+      return categories
+    }
+
+    const renderChart = () => {
+      const categories = classifyLogs(allLogs.value)
+      const chartInstance = echarts.init(chart.value)
+      
+      const colors = [
+        '#5470C6', // 成果操作
+        '#91CC75', // 单位操作
+        '#FAC858', // 模板操作
+        '#EE6666', // 投诉操作
+        '#73C0DE', // 用户操作
+        '#3BA272', // 产权操作
+        '#FC8452'  // 评价操作
+      ]
+
+      const option = {
+        title: {
+          text: '日志操作分类统计',
+          left: 'center',
+          textStyle: {
+            fontSize: 18,
+            fontWeight: 'bold',
+            color: '#333'
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'shadow'
+          },
+          formatter: (params) => {
+            return `${params[0].name}<br/>
+                    数量: ${params[0].value}`
+          }
+        },
+        xAxis: {
+          type: 'category',
+          data: Object.keys(categories),
+          axisLabel: {
+            rotate: 45,
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#666',
+            margin: 15
+          },
+          axisLine: {
+            lineStyle: {
+              color: '#ccc'
+            }
+          }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: {
+            fontSize: 14,
+            color: '#666'
+          },
+          axisLine: {
+            lineStyle: {
+              color: '#ccc'
+            }
+          },
+          splitLine: {
+            lineStyle: {
+              type: 'dashed'
+            }
+          }
+        },
+        series: [{
+          data: Object.values(categories),
+          type: 'bar',
+          itemStyle: {
+            color: (params) => colors[params.dataIndex]
+          },
+          barWidth: '60%',
+          label: {
+            show: true,
+            position: 'top',
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#333'
+          }
+        }],
+        grid: {
+          containLabel: true,
+          left: '3%',
+          right: '3%',
+          bottom: '10%',
+          top: '15%'
+        }
+      }
+
+      chartInstance.setOption(option)
+    }
+
+    const exportLogs = () => {
+      const content = logs.value.map(log => 
+        `日志ID: ${log.logId}, 用户ID: ${log.userId}, 内容: ${log.logIntro}, 时间: ${formatDate(log.logTime)}`
+      ).join('\n');
+      
+      const blob = new Blob([content], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `logs_${new Date().toISOString().slice(0,10)}.txt`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      
+      ElMessage.success('日志导出成功');
+    }
+
     watch(logs, () => {
       updatePagination()
+    })
+
+    watch(allLogs, () => {
+      renderChart()
     })
 
     onMounted(() => {
@@ -266,7 +527,14 @@ export default {
       addDialogVisible,
       addForm,
       showAddLogDialog,
-      handleAddLog
+      handleAddLog,
+      handleDeleteLog,
+      editDialogVisible,
+      editForm,
+      showEditLogDialog,
+      handleEditLog,
+      chart,
+      exportLogs
     }
   }
 }
@@ -347,6 +615,13 @@ export default {
   flex: 1;
   padding: 0 8px;
   color: #606266;
+}
+
+.list-cell:last-child {
+  flex: 0.5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .pagination-controls {
@@ -442,5 +717,26 @@ export default {
 
 .add-btn i {
   margin-right: 6px;
+}
+
+.export-btn {
+  background-color: #409eff;
+}
+
+.export-btn:hover {
+  background-color: #66b1ff;
+}
+
+.chart-container {
+  margin: 20px 0 40px 0;
+  padding: 30px;
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.chart {
+  margin-top: 20px;
 }
 </style>

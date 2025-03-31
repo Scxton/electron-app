@@ -5,6 +5,11 @@
       <el-button type="primary" @click="showAddDialog">添加单位</el-button>
     </div>
 
+    <!-- 新增：柱状图区域 -->
+    <div class="chart-container">
+      <div ref="chartRef" style="width: 100%; height: 400px;"></div>
+    </div>
+
     <!-- 搜索栏 -->
     <div class="search-bar">
       <el-input
@@ -36,7 +41,11 @@
       <el-table-column prop="contactName" label="联系人" width="120" />
       <el-table-column prop="contactPhone" label="联系人电话" width="120" />
       <el-table-column prop="projectCount" label="项目数" width="100" />
-      <el-table-column prop="achievementCount" label="成果数" width="100" />
+      <el-table-column prop="achievementCount" label="成果数" width="100">
+        <template #default="scope">
+          <el-button type="text" @click="showAchievementStats(scope.row)">{{ scope.row.achievementCount }}</el-button>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="scope">
           <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
@@ -132,11 +141,25 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 修改：成果统计对话框 -->
+    <el-dialog
+      v-model="achievementStatsVisible"
+      :title="`${selectedCompanyName} 年度成果统计`"
+      width="800px"
+    >
+      <div ref="lineChartRef" style="width: 100%; height: 400px;"></div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="achievementStatsVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search } from '@element-plus/icons-vue';
 import {
@@ -145,10 +168,11 @@ import {
   addCompany,
   updateCompany,
   deleteCompany,
-
+  countProjectsByOrganizationId,
   fuzzySearchAchievements
 } from '../../api/companyInfo';
 import { addLog } from '../../api/log';
+import * as echarts from 'echarts';
 
 // 数据状态
 const companies = ref([]);
@@ -175,6 +199,13 @@ const companyForm = ref({
 // 删除对话框
 const deleteDialogVisible = ref(false);
 const companyToDelete = ref(null);
+
+// 新增状态
+const achievementStatsVisible = ref(false);
+const achievementStats = ref([]);
+const lineChartRef = ref(null);
+let lineChartInstance = null;
+const selectedCompanyName = ref('');
 
 // 表单验证规则
 const rules = {
@@ -217,9 +248,135 @@ const paginatedCompanies = computed(() => {
   return filteredCompanies.value.slice(start, end);
 });
 
+// 新增：图表引用
+const chartRef = ref(null);
+let chartInstance = null;
+
+// 新增：监听公司数据变化，更新图表
+watch(companies, (newVal) => {
+  if (newVal.length > 0) {
+    updateChart();
+  }
+}, { deep: true });
+
+// 修改：更新图表方法
+const updateChart = () => {
+  if (!chartInstance) return;
+
+  const chartData = companies.value.map(company => ({
+    name: company.name,
+    value: company.achievementCount
+  }));
+
+  // 更新为现代配色方案
+  const colors = [
+    '#6C5B7B', '#C06C84', '#F67280', '#F8B195', // 柔和紫色系
+    '#355C7D', '#A8E6CE', '#DCEDC2', '#FF8C94', // 清新蓝绿色系
+    '#4A90E2', '#7ED321', '#BD10E0', '#F5A623', // 现代科技色
+    '#50E3C2', '#B8E986', '#FFD300', '#FF6F61'  // 活力渐变色
+  ];
+
+  const option = {
+    title: {
+      text: '各单位成果数量统计',
+      left: 'center',
+      textStyle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333'
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: '{b}: {c} 项成果',
+      backgroundColor: 'rgba(50,50,50,0.9)',
+      borderColor: '#333',
+      textStyle: {
+        color: '#fff',
+        fontSize: 14
+      }
+    },
+    xAxis: {
+      type: 'category',
+      data: chartData.map(item => item.name),
+      axisLabel: {
+        rotate: 45,
+        interval: 0,
+        fontSize: 12,
+        color: '#666',
+        margin: 15
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#dcdfe6'
+        }
+      },
+      axisTick: {
+        show: false
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        fontSize: 12,
+        color: '#666'
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#dcdfe6'
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f0f0f0',
+          type: 'dashed'
+        }
+      }
+    },
+    series: [{
+      data: chartData.map(item => item.value),
+      type: 'bar',
+      itemStyle: {
+        color: (params) => colors[params.dataIndex % colors.length],
+        borderRadius: [6, 6, 0, 0] // 添加圆角效果
+      },
+      barMaxWidth: 50,
+      label: {
+        show: true,
+        position: 'top',
+        color: '#333',
+        fontSize: 12,
+        fontWeight: 'bold',
+        formatter: '{c} 项',
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        padding: [4, 6],
+        borderRadius: 4,
+        borderColor: '#eee',
+        borderWidth: 1
+      }
+    }],
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      containLabel: true,
+      backgroundColor: '#fff'
+    }
+  };
+
+  chartInstance.setOption(option);
+};
+
 // 生命周期钩子
 onMounted(() => {
   fetchCompanies();
+  chartInstance = echarts.init(chartRef.value);
+  window.addEventListener('resize', () => {
+    chartInstance.resize();
+  });
 });
 
 // 方法
@@ -240,12 +397,13 @@ const fetchCompanies = async () => {
     companies.value = await Promise.all(backendData.map(async item => {
       // 获取每个单位的成果数量
       const achievementCount = await getAchievementCount(item.organizationId);
-      
-      // 更新数据库中的achievementCount
+      const projectCount = await getProjectCount(item.organizationId);    
+      // 更新数据库中的achievementCount  
       try {
         await updateCompany({
           id: item.organizationId,
-          achievementCount: achievementCount || 0
+          achievementCount: achievementCount || 0,
+          projectCount: projectCount || 0
         });
       } catch (error) {
         console.error('更新单位成果数量出错:', error);
@@ -258,7 +416,7 @@ const fetchCompanies = async () => {
         phone: item.organizationPhone || '',
         contactName: item.contactsName || '',
         contactPhone: item.contactsPhone || '',
-        projectCount: item.organizationProjectCount !== null ? item.organizationProjectCount : 0,
+        projectCount: projectCount || 0,
         achievementCount: achievementCount || 0,
         status: item.tableStatus
       };
@@ -272,14 +430,26 @@ const fetchCompanies = async () => {
     loading.value = false;
   }
 };
-
+const getProjectCount = async (organizationId) => {
+  try {
+    const response = await countProjectsByOrganizationId(organizationId);
+    if (response ) {
+      return response;
+    }
+    console.warn(`Invalid project count response for organizationId: ${organizationId}`, response);
+    return 0;
+  } catch (error) {
+    console.error('获取项目数量出错:', error);
+    return 0;
+  }
+};
 // 新增方法：获取单位成果数量
 const getAchievementCount = async (organizationId) => {
   try {
-    const searchBody = {
+    const searchBody = { 
       achievementBelongingOrganizations: [organizationId]
     };
-    console.log('Search body:', searchBody);
+    // console.log('Search body:', searchBody);
     const response = await fuzzySearchAchievements(searchBody);
     console.log('Response for organizationId:', organizationId, response);
     
@@ -436,6 +606,166 @@ const submitForm = async () => {
     ElMessage.error('提交表单出错: ' + (error.message || '未知错误'));
   }
 };
+
+// 新增方法：获取年度成果统计
+const getAchievementStats = async (organizationId) => {
+  try {
+    const searchBody = {
+      achievementBelongingOrganizations: [organizationId]
+    };
+    const response = await fuzzySearchAchievements(searchBody);
+    
+    if (!response || !Array.isArray(response)) {
+      return [];
+    }
+    
+    // 按年份统计
+    const yearMap = new Map();
+    response.forEach(achievement => {
+      if (achievement.uploadTime) {
+        const year = new Date(achievement.uploadTime).getFullYear();
+        yearMap.set(year, (yearMap.get(year) || 0) + 1);
+      }
+    });
+    
+    // 转换为数组并排序（修改排序逻辑）
+    return Array.from(yearMap.entries())
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => a.year - b.year); // 改为从小到大排序
+  } catch (error) {
+    console.error('获取年度成果统计出错:', error);
+    return [];
+  }
+};
+
+// 新增方法：初始化折线图
+const initLineChart = () => {
+  if (lineChartInstance) return;
+  lineChartInstance = echarts.init(lineChartRef.value);
+  window.addEventListener('resize', () => {
+    lineChartInstance.resize();
+  });
+};
+
+// 修改：更新折线图数据
+const updateLineChart = (stats) => {
+  if (!lineChartInstance) return;
+
+  const option = {
+    title: {
+      text: '年度成果数量趋势',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333'
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: '{b}: {c} 项成果',
+      backgroundColor: 'rgba(50,50,50,0.9)',
+      borderColor: '#333',
+      textStyle: {
+        color: '#fff',
+        fontSize: 14
+      }
+    },
+    xAxis: {
+      type: 'category',
+      data: stats.map(item => item.year),
+      axisLabel: {
+        fontSize: 12,
+        color: '#666'
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#dcdfe6'
+        }
+      },
+      axisTick: {
+        show: false
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        fontSize: 12,
+        color: '#666'
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#dcdfe6'
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f0f0f0',
+          type: 'dashed'
+        }
+      }
+    },
+    series: [{
+      data: stats.map(item => item.count),
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: {
+        width: 3,
+        color: '#1a73e8'
+      },
+      itemStyle: {
+        color: '#1a73e8',
+        borderColor: '#fff',
+        borderWidth: 2
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [{
+            offset: 0, color: 'rgba(26, 115, 232, 0.2)' 
+          }, {
+            offset: 1, color: 'rgba(26, 115, 232, 0)'
+          }]
+        }
+      }
+    }],
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      containLabel: true
+    }
+  };
+
+  lineChartInstance.setOption(option);
+};
+
+// 修改：显示成果统计
+const showAchievementStats = async (row) => {
+  if (row.achievementCount === 0) return;
+  
+  loading.value = true;
+  try {
+    selectedCompanyName.value = row.name;
+    const stats = await getAchievementStats(row.id);
+    achievementStatsVisible.value = true;
+    
+    // 初始化折线图
+    await nextTick();
+    initLineChart();
+    updateLineChart(stats);
+  } catch (error) {
+    ElMessage.error('获取成果统计失败');
+  } finally {
+    loading.value = false;
+  }
+};
 </script>
 
 <style scoped>
@@ -553,5 +883,15 @@ const submitForm = async () => {
 
 :deep(.el-tag) {
   border-radius: 4px;
+}
+
+/* 修改：图表容器样式 */
+.chart-container {
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+  border: 1px solid #ebeef5;
 }
 </style>

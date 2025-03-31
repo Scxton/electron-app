@@ -318,3 +318,21 @@ export function getOnlineUserCount() {
       return response;
     });
   }
+
+// 通过ID查询角色信息
+export function getRoleById(id) {
+    return service.get("/roleTable/queryById", {
+        params: {
+            "id": id
+        }
+    }).then(res => {
+        if (res && res.status === 200) {
+            if (res.data.resultCode === 200) {
+                return res.data.data;
+            }
+        }
+        throw new Error(res.data.resultMsg || "查询失败");
+    }).catch(error => {
+        throw error;
+    });
+}

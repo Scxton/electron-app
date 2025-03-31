@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-
+  
 const routes = [
   // 精确匹配 #/login，指向Login页面
   {
@@ -40,6 +40,12 @@ const routes = [
         name: '我的成果',
         iconClass: 'fa fa-upload',
         component: () => import('@renderer/components/publish/My_Ach.vue')
+      },
+      {
+        path: '/publish/myComplaint',
+        name: '我的投诉',
+        iconClass: 'fa fa-upload',
+        component: () => import('@renderer/components/publish/My_Complaint.vue')
       },
       {
         path: '/publish/info',

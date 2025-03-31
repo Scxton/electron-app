@@ -108,6 +108,7 @@
                         </div>
                         <div class="column-title">成果名称</div>
                         <div class="column-type">类型</div>
+                        <div class="column-version">版本</div>
                         <div class="column-author">作者</div>
                         <div class="column-project">项目</div>
                         <div class="column-org">单位</div>
@@ -146,6 +147,7 @@
                             <div class="column-type">
                                 <span class="type-tag">{{ item.type }}</span>
                             </div>
+                            <div class="column-version">{{ item.version || '-' }}</div>
                             <div class="column-author">{{ item.author }}</div>
                             <div class="column-project">{{ item.project }}</div>
                             <div class="column-org">{{ item.organization }}</div>
@@ -768,12 +770,9 @@ const handleAdvancedSearch = async (params) => {
 const processSearchResults = (response) => {
     console.log("response_search", response);
     if (Array.isArray(response)){
-        
         const filteredResults = response.filter(item => {
             const itemType = item.achievementCategory?.toLowerCase()
-            // 如果没有选择类型，显示所有结果
             if (!selectedTypes.value.length) return true
-            // 否则只显示选中类型的结果
             return selectedTypes.value.includes(itemType)
         });
         
@@ -781,6 +780,7 @@ const processSearchResults = (response) => {
             id: item.achievementId,
             title: item.achievementName,
             type: item.achievementCategory?.toLowerCase(),
+            version: item.achievementVersion,
             author: item.userId,
             project: item.projectId,
             organization: item.organizationName,
@@ -790,11 +790,8 @@ const processSearchResults = (response) => {
             isPriority: item.achievementCategory?.toLowerCase() === priorityType.value
         }));
         
-        currentPage.value = 1; // 重置到第一页
-        handleSort(); // 应用排序和优先级
-        
-        //调试信息
-       
+        currentPage.value = 1;
+        handleSort();
     }
 };
 
@@ -1196,7 +1193,7 @@ const navigateToDetail = (item) => {
 
 .table-header {
     display: grid;
-    grid-template-columns: 50px 2.5fr 80px 1fr 1.5fr 1.5fr 120px;
+    grid-template-columns: 50px 2fr 80px 80px 1fr 1.5fr 1.5fr 120px;
     padding: 15px;
     background: #f8f9fa;
     border-bottom: 1px solid #eee;
@@ -1207,7 +1204,7 @@ const navigateToDetail = (item) => {
 
 .table-row {
     display: grid;
-    grid-template-columns: 50px 2.5fr 80px 1fr 1.5fr 1.5fr 120px;
+    grid-template-columns: 50px 2fr 80px 80px 1fr 1.5fr 1.5fr 120px;
     padding: 15px;
     border-bottom: 1px solid #eee;
     align-items: center;
@@ -1272,7 +1269,7 @@ const navigateToDetail = (item) => {
 @media (max-width: 1024px) {
     .table-header,
     .table-row {
-        grid-template-columns: 50px 2fr 80px 1fr 1fr 1fr 120px;
+        grid-template-columns: 50px 2fr 80px 80px 1fr 1fr 1fr 120px;
     }
 }
 
@@ -1600,6 +1597,14 @@ const navigateToDetail = (item) => {
         border-radius: 6px;
         border-left: 1px solid #ddd;
     }
+}
+
+/* 添加版本列的样式 */
+.column-version {
+    padding: 0 10px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
 }
 </style>
 

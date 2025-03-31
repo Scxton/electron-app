@@ -45,18 +45,27 @@
         </div>
       </div>
       
+      <!-- 添加统计图 -->
+      <div class="chart-container">
+        <div ref="chart" class="chart" style="width: 100%; height: 400px;"></div>
+        <div id="download-chart" class="chart" style="width: 100%; height: 400px; margin-top: 20px;"></div>
+      </div>
+
       <div class="list-container">
         <div class="list-header">
           <div class="list-column">成果名称</div>
           <div class="list-column">成果类型</div>
           <div class="list-column">发布单位</div>
           <div class="list-column">成果状态</div>
+          <div class="list-column">当前版本</div>
           <div class="list-column">下载次数</div>
           <div class="list-column">上传时间</div>
           <div class="list-column">操作</div>
         </div>
         <div class="list-item" v-for="achievement in paginatedAchievements" :key="achievement.id">
-          <div class="list-cell achievement-name">{{ achievement.achievementName }}</div>
+          <div class="list-cell achievement-name">
+            <a href="#" @click.prevent="showVersionHistory(achievement)">{{ achievement.achievementName }}</a>
+          </div>
           <div class="list-cell">{{ translateCategory(achievement.achievementCategory) }}</div>
           <div class="list-cell">{{ achievement.organizationName }}</div>
           <div class="list-cell">
@@ -64,6 +73,7 @@
               {{ getStatus(achievement.auditFlag) }}
             </span>
           </div>
+          <div class="list-cell">{{ achievement.achievementVersion || '-' }}</div>
           <div class="list-cell">{{ achievement.achievementDownloadCount }}</div>
           <div class="list-cell">{{ formatDate(achievement.uploadTime) }}</div>
           <div class="list-cell actions">
@@ -167,17 +177,66 @@
           <el-button type="primary" @click="handleEditSubmit">确认</el-button>
         </template>
       </el-dialog>
+
+      <!-- 版本历史弹窗 -->
+      <el-dialog
+        v-model="versionHistoryVisible"
+        title="历史版本"
+        width="60%"
+      >
+        <div v-if="loadingVersions" class="loading-container">
+          <i class="fas fa-spinner fa-spin"></i> 加载中...
+        </div>
+        <div v-else>
+          <div v-if="versionHistory.length === 0" class="no-data">
+            暂无历史版本记录
+          </div>
+          <div v-else class="version-history-container">
+            <div class="version-list-header">
+              <div class="version-column">版本号</div>
+              <div class="version-column">上传时间</div>
+              <div class="version-column">版本说明</div>
+              <div class="version-column">操作</div>
+            </div>
+            <div class="version-list-item" v-for="version in versionHistory" :key="version.id">
+              <div class="version-cell">{{ version.versionNumber }}</div>
+              <div class="version-cell">{{ formatDate(version.updateTime) }}</div>
+              <div class="version-cell">{{ version.versionDescription || '无' }}</div>
+              <div class="version-cell actions">
+                <button class="download-btn" @click="downloadVersion(version)">
+                  <i class="fas fa-download"></i> 下载
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="version-pagination">
+            <el-pagination
+              v-model:current-page="versionCurrentPage"
+              v-model:page-size="versionPageSize"
+              :page-sizes="[5, 10, 20]"
+              layout="total, sizes, prev, pager, next"
+              :total="versionTotal"
+              @size-change="handleVersionSizeChange"
+              @current-change="handleVersionCurrentChange"
+            />
+          </div>
+        </div>
+      </el-dialog>
     </div>
   </template>
   
   <script>
-  import { queryAll,update,deleteItem } from '../../api/achieveInfo.js'
-  import { ref, onMounted, watch } from 'vue'
+  import { queryAll,update,deleteItem, queryAllDownloadRecords } from '../../api/achieveInfo.js'
+  import { ref, onMounted, watch, nextTick } from 'vue'
   import { useRouter } from 'vue-router'
   import ReviewComponent from '../publish/review.vue'
-  import { ElMessageBox } from 'element-plus'
+  import { ElMessageBox, ElMessage } from 'element-plus'
   import { getAllCompanies } from '../../api/companyInfo'
   import { addLog } from '../../api/log.js'
+  import * as echarts from 'echarts'
+  import { getVersionHistoryWithPagination } from '../../api/search.js'
+  import { downloadAchievements } from '../../api/download.js'
   
   export default {
     components: {
@@ -209,6 +268,14 @@
       const companies = ref([])
       const companyLoading = ref(false)
       const searchText = ref('')
+      const chart = ref(null)
+      const versionHistoryVisible = ref(false)
+      const loadingVersions = ref(false)
+      const versionHistory = ref([])
+      const versionCurrentPage = ref(1)
+      const versionPageSize = ref(10)
+      const versionTotal = ref(0)
+      const currentAchievement = ref(null)
   
       const updateStatistics = (achievements) => {
         totalCount.value = achievements.length
@@ -275,8 +342,8 @@
             return '待审核';
           case 1:
             return '已发布';
-          default:
-            return '待上传';
+          case 2:
+            return '待审核';
         }
       }
   
@@ -452,13 +519,320 @@
         }
       }
   
+      const initChart = () => {
+        const myChart = echarts.init(chart.value)
+        
+        // 统计各类型成果数量
+        const typeCounts = allAchievements.value.reduce((acc, achievement) => {
+          acc[achievement.achievementCategory] = (acc[achievement.achievementCategory] || 0) + 1
+          return acc
+        }, {})
+
+        const option = {
+          title: {
+            text: '成果类型统计',
+            left: 'center',
+            textStyle: {
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: '#333'
+            }
+          },
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}: {c} ({d}%)',
+            backgroundColor: 'rgba(50, 50, 50, 0.9)',
+            borderColor: '#333',
+            textStyle: {
+              color: '#fff',
+              fontSize: 14
+            }
+          },
+          legend: {
+            orient: 'vertical',
+            left: 'left',
+            top: 'center',
+            textStyle: {
+              color: '#666',
+              fontSize: 14
+            },
+            itemWidth: 14,
+            itemHeight: 14,
+            itemGap: 20
+          },
+          series: [
+            {
+              name: '成果类型',
+              type: 'pie',
+              radius: ['40%', '70%'],
+              center: ['50%', '55%'],
+              avoidLabelOverlap: true,
+              itemStyle: {
+                borderRadius: 8,
+                borderColor: '#fff',
+                borderWidth: 2,
+                shadowBlur: 10,
+                shadowColor: 'rgba(0, 0, 0, 0.3)'
+              },
+              label: {
+                show: true,
+                formatter: '{b|{b}}\n{c} ({d}%)',
+                rich: {
+                  b: {
+                    fontSize: 14,
+                    lineHeight: 20,
+                    color: '#333'
+                  }
+                }
+              },
+              emphasis: {
+                label: {
+                  show: true,
+                  fontSize: 16,
+                  fontWeight: 'bold'
+                },
+                itemStyle: {
+                  shadowBlur: 20,
+                  shadowOffsetX: 0,
+                  shadowColor: 'rgba(0, 0, 0, 0.5)'
+                }
+              },
+              data: Object.entries(typeCounts).map(([name, value]) => ({
+                name: translateCategory(name),
+                value,
+                itemStyle: {
+                  color: getCategoryColor(name),
+                  shadowBlur: 10,
+                  shadowOffsetY: 3,
+                  shadowColor: 'rgba(0, 0, 0, 0.3)'
+                }
+              })),
+              animationType: 'scale',
+              animationEasing: 'elasticOut',
+              animationDelay: function (idx) {
+                return Math.random() * 200;
+              }
+            }
+          ]
+        }
+
+        myChart.setOption(option)
+      }
+  
+      const getCategoryColor = (category) => {
+        const colors = {
+          paper: '#5470C6',
+          patent: '#91CC75',
+          project: '#FAC858',
+          report: '#EE6666'
+        }
+        return colors[category] || '#73C0DE'
+      }
+  
+      const processDownloadStats = async () => {
+        try {
+          const response = await queryAllDownloadRecords();
+          const downloadRecords = response;
+          
+          // 按年统计下载数量
+          const yearlyStats = downloadRecords.reduce((acc, record) => {
+            const year = new Date(record.downloadTime).getFullYear();
+            acc[year] = (acc[year] || 0) + 1;
+            return acc;
+          }, {});
+
+          // 将统计结果转换为数组格式
+          const years = Object.keys(yearlyStats).sort();
+          const data = years.map(year => ({
+            year: parseInt(year),
+            count: yearlyStats[year]  
+          }));
+
+          // 绘制折线图
+          const chartDom = document.getElementById('download-chart');
+          const myChart = echarts.init(chartDom);
+          
+          const option = {
+            title: {
+              text: '年度成果下载统计',
+              left: 'center',
+              textStyle: {
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#333'
+              }
+            },
+            tooltip: {
+              trigger: 'axis',
+              formatter: '{b}年: {c}次',
+              backgroundColor: 'rgba(50, 50, 50, 0.9)',
+              borderColor: '#333',
+              textStyle: {
+                color: '#fff',
+                fontSize: 14
+              }
+            },
+            xAxis: {
+              type: 'category',
+              data: data.map(item => item.year),
+              axisLabel: {
+                formatter: '{value}年'
+              }
+            },
+            yAxis: {
+              type: 'value',
+              axisLabel: {
+                formatter: '{value} 次'
+              }
+            },
+            series: [{
+              data: data.map(item => item.count),
+              type: 'line',
+              smooth: true,
+              lineStyle: {
+                width: 3,
+                color: '#5470C6'
+              },
+              itemStyle: {
+                color: '#5470C6'
+              },
+              areaStyle: {
+                color: {
+                  type: 'linear',
+                  x: 0,
+                  y: 0,
+                  x2: 0,
+                  y2: 1,
+                  colorStops: [{
+                    offset: 0, color: 'rgba(84, 112, 198, 0.7)' // 起始颜色
+                  }, {
+                    offset: 1, color: 'rgba(84, 112, 198, 0)' // 结束颜色
+                  }]
+                }
+              }
+            }]
+          };
+
+          myChart.setOption(option);
+        } catch (error) {
+          console.error('Error processing download stats:', error);
+        }
+      };
+  
+      const showVersionHistory = async (achievement) => {
+        currentAchievement.value = achievement
+        versionHistoryVisible.value = true
+        versionCurrentPage.value = 1
+        await fetchVersionHistory()
+      }
+      
+      const fetchVersionHistory = async () => {
+        if (!currentAchievement.value) return
+        
+        loadingVersions.value = true
+        try {
+          const versionHistoryData = {
+            achievementId: currentAchievement.value.achievementId
+          }
+          
+          const response = await getVersionHistoryWithPagination(
+            versionHistoryData, 
+            versionCurrentPage.value, 
+            versionPageSize.value
+          )
+          
+          console.log('Version history response:', response)
+          
+          if (Array.isArray(response)) {
+            versionHistory.value = response
+            versionTotal.value = response.length // This might need adjustment if backend provides total count
+          } else if (response && Array.isArray(response.data)) {
+            versionHistory.value = response.data
+            versionTotal.value = response.total || response.data.length
+          } else {
+            versionHistory.value = []
+            versionTotal.value = 0
+          }
+        } catch (error) {
+          console.error('Error fetching version history:', error)
+          ElMessageBox.alert('获取版本历史失败', '错误', {
+            confirmButtonText: '确定',
+            type: 'error'
+          })
+          versionHistory.value = []
+          versionTotal.value = 0
+        } finally {
+          loadingVersions.value = false
+        }
+      }
+      
+      const handleVersionSizeChange = (size) => {
+        versionPageSize.value = size
+        fetchVersionHistory()
+      }
+      
+      const handleVersionCurrentChange = (page) => {
+        versionCurrentPage.value = page
+        fetchVersionHistory()
+      }
+      
+      const downloadVersion = (version) => {
+        if (!currentAchievement.value) return;
+        
+        try {
+          // Construct the filename in the required format: AchievementName+AchievementVersion+.zip
+          const fileName = `${currentAchievement.value.achievementName}${version.versionNumber}.zip`;
+          
+          console.log('Downloading version file:', fileName);
+          
+          // Call the downloadAchievements API with the constructed filename
+          downloadAchievements(fileName);
+          
+          // Show success message
+          ElMessage({
+            message: '文件开始下载',
+            type: 'success',
+            duration: 2000,
+            showClose: true
+          });
+          
+          // Add log for download operation
+          addLog({
+            userId: localStorage.getItem('userId'),
+            logIntro: `下载成果版本: ${currentAchievement.value.achievementName} (${version.versionNumber})`,
+            logTime: new Date().toISOString().split('T')[0],
+            tableStatus: true
+          }).catch(error => {
+            console.error('Error logging download action:', error);
+          });
+        } catch (error) {
+          console.error('Error downloading version:', error);
+          ElMessage({
+            message: '下载失败，请稍后重试',
+            type: 'error',
+            duration: 3000,
+            showClose: true
+          });
+        }
+      }
+  
       watch(achievements, () => {
         updatePagination()
+      })
+  
+      watch(allAchievements, () => {
+        if (chart.value) {
+          initChart()
+        }
       })
   
       onMounted(() => {
         fetchAchievements()
         fetchCompanies() // 获取公司数据
+        processDownloadStats() // 新增
+        nextTick(() => {
+          initChart()
+        })
       })
   
       return {
@@ -490,7 +864,18 @@
         deleteAchievement,
         companies,
         companyLoading,
-        searchText
+        searchText,
+        chart,
+        versionHistoryVisible,
+        versionHistory,
+        loadingVersions,
+        versionCurrentPage,
+        versionPageSize,
+        versionTotal,
+        showVersionHistory,
+        handleVersionSizeChange,
+        handleVersionCurrentChange,
+        downloadVersion
       }
     }
   }
@@ -921,6 +1306,116 @@
   .info-row,
   .card-actions {
     display: none;
+  }
+  
+  /* 添加统计图样式 */
+  .chart-container {
+    margin: 20px 0;
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Version History Styles */
+  .version-history-container {
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #fff;
+    margin-bottom: 20px;
+  }
+  
+  .version-list-header {
+    display: flex;
+    background-color: #f5f7fa;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: #606266;
+    border-bottom: 1px solid #ebeef5;
+  }
+  
+  .version-column {
+    flex: 1;
+    padding: 0 8px;
+    text-align: center;
+  }
+  
+  .version-list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #ebeef5;
+    transition: background-color 0.3s ease;
+  }
+  
+  .version-list-item:hover {
+    background-color: #f5f7fa;
+  }
+  
+  .version-list-item:last-child {
+    border-bottom: none;
+  }
+  
+  .version-cell {
+    flex: 1;
+    padding: 0 8px;
+    color: #606266;
+    text-align: center;
+  }
+  
+  .download-btn {
+    padding: 6px 12px;
+    background-color: #409eff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .download-btn:hover {
+    background-color: #66b1ff;
+  }
+  
+  .loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    color: #909399;
+    font-size: 16px;
+  }
+  
+  .loading-container i {
+    margin-right: 10px;
+  }
+  
+  .no-data {
+    text-align: center;
+    padding: 40px;
+    color: #909399;
+    font-size: 16px;
+  }
+  
+  .version-pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .achievement-name a {
+    color: #409eff;
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  
+  .achievement-name a:hover {
+    color: #66b1ff;
+    text-decoration: underline;
   }
   </style>
   
