@@ -116,11 +116,12 @@
           </el-table-column>
           <el-table-column label="操作">
               <template #default="scope">
-                 
+                  <el-button size="small" type="primary" @click="handleAccept(scope.$index, scope.row)">
+                      受理
+                  </el-button>
                   <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
                       删除
                   </el-button>
-                  
                   <el-button size="small" type="info" @click="handleDownload(scope.$index, scope.row)">
                       下载
                   </el-button>
@@ -197,7 +198,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMain, ElMessage, ElMessageBox } from 'element-plus';
-import { queryAllComplaints, updateComplaintStatus, deleteComplaint, downloadComplaintFile } from '../../api/patentComplaints';
+import { queryAllComplaints, updateComplaintStatus, deleteComplaintById, downloadComplaintFile } from '../../api/patentComplaints';
 
 interface Complaint {
   id: string
@@ -310,31 +311,7 @@ onMounted(() => {
   fetchComplaints();
 });
 
-const handleEdit = (index: number, row: Complaint) => {
-  ElMessageBox.confirm('是否确认受理该投诉?', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    try {
-      await updateComplaintStatus(row.id, row.status)
-      ElMessage({
-        type: 'success',
-        message: '受理成功'
-      })
-      // 刷新数据
-      await fetchComplaints()
-    } catch (error) {
-      console.error('受理失败:', error)
-      ElMessage.error('受理失败')
-    }
-  }).catch(() => {
-    ElMessage({
-      type: 'info',
-      message: '已取消受理'
-    })
-  })
-}
+
 const handleDelete = (index: number, row: Complaint) => {
   ElMessageBox.confirm('确认删除该投诉信息?', '提示', {
     confirmButtonText: '确定',
@@ -342,7 +319,7 @@ const handleDelete = (index: number, row: Complaint) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await deleteComplaint(row.id)
+      await deleteComplaintById(row.id)
       ElMessage({
         type: 'success',
         message: '删除成功'
@@ -536,6 +513,34 @@ const handleDownload = async (index: number, row: Complaint) => {
     console.error('文件下载失败:', error);
     ElMessage.error('文件下载失败');
   }
+};
+
+// 添加受理处理函数
+const handleAccept = (index: number, row: Complaint) => {
+  ElMessageBox.confirm('是否确认受理该投诉?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      // 将状态更新为受理中（状态码1）
+      await updateComplaintStatus(row.id, row.status);
+      ElMessage({
+        type: 'success',
+        message: '受理成功'
+      });
+      // 刷新数据
+      await fetchComplaints();
+    } catch (error) {
+      console.error('受理失败:', error);
+      ElMessage.error('受理失败');
+    }
+  }).catch(() => {
+    ElMessage({
+      type: 'info',
+      message: '已取消受理'
+    });
+  });
 };
 
 </script>

@@ -183,44 +183,28 @@ const confirmUpload = async () => {
   try {
     console.log('开始上传模板，表单数据：', formData)
     
-    // 首先上传文件
-    const fileFormData = new FormData()
-    fileFormData.append('file', formData.file)
-    
-    // 上传文件
-    const uploadResponse = await Upload_template(fileFormData)
-    console.log('文件上传响应：', uploadResponse)
-    
-    if (!uploadResponse) {
-      throw new Error(uploadResponse.message || '文件上传失败')
-    }
-    
-    const templateStoragepath = uploadResponse || ''
     const userId = parseInt(localStorage.getItem('userId'))
     if (!userId) {
       throw new Error('用户未登录或登录信息已失效')
     }
-    console.log('userId = ', userId)
     
     const templateData = {
       templateName: formData.templateName,
       templateType: formData.templateType,
-      templateId: '', // 使用时间戳作为模板ID
       versionNumber: formData.version,
       templateIntro: formData.templateIntro,
-      remarks: '',
-      uploadTime: new Date().toISOString(),
-      userId: userId, // 现在是整数类型
-      templateStoragepath: templateStoragepath,
+      userId: userId,
       tableStatus: true,
-      reviewStatus: false,
-      updateTime: new Date().toISOString()
+      reviewStatus: false
     }
 
-    console.log('准备发送的模板数据：', templateData)
+    // 统一调用 Upload_template 上传文件和模板数据
+    const response = await Upload_template(formData.file, templateData)
+    console.log('模板上传响应：', response)
     
-    const response = await addTemplate(templateData)
-    console.log('模板数据添加响应：', response)
+    if (!response ) {
+      throw new Error(response?.message || '模板上传失败')
+    }
     
     // Add logging for template upload
     const currentDate = new Date().toISOString().split('T')[0]

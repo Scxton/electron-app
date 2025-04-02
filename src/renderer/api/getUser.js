@@ -89,3 +89,29 @@ export function deleteUser(id) {
         mock: false
     })
 }
+
+// 获取用户在线时长
+export function getOnlineDuration(userName) {
+    return request({
+        method: 'get',
+        url: '/DataStatistic/onlineUserDuration',
+        // url: '/DataStatistic/getLogInTimeByUsername',
+        params: {
+            userName: userName
+        },
+        mock: false
+    })
+}
+
+//获取登录时间
+export function LogInTimeByUsername(userName) {
+    return request({
+        method: 'get',
+        url: '/DataStatistic/getLogInTimeByUsername',
+        // url: '/DataStatistic/getLogInTimeByUsername',
+        params: {
+            userName: userName
+        },
+        mock: false
+    })
+}

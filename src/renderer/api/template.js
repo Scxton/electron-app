@@ -56,7 +56,13 @@ export const updateTemplate = (template) => {
     })
   }
 
-export function Upload_template(formData) {
+export function Upload_template(file, templateData) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('achievementCheckTemplate', new Blob([JSON.stringify(templateData)], {
+        type: 'application/json'
+    }));
+
     return request({
         url: '/template/upload',
         method: 'post',

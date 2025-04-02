@@ -31,7 +31,13 @@
       <el-table :data="tableData" style="width: 100%" :row-class-name="tableRowClassName" border
           :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
           <el-table-column prop="userId" label="用户ID" width="150" />
-          <el-table-column prop="userName" label="用户名称" width="150" />
+          <el-table-column prop="userName" label="用户名称" width="150">
+              <template #default="scope">
+                  <span :class="{'online-user': scope.row.loginTime && scope.row.loginTime !== '-', 'offline-user': !scope.row.loginTime || scope.row.loginTime === '-'}">
+                      {{ scope.row.userName }}
+                  </span>
+              </template>
+          </el-table-column>
           <el-table-column prop="roleId" label="用户角色">
               <template #default="scope">
                   {{ scope.row.roleId === 1 ? '管理员' : scope.row.roleId === 2 ? '发布者' : '普通用户' }}
@@ -40,6 +46,17 @@
           <el-table-column label="申请时间" width="180">
               <template #default="scope">
                   {{ formatDate(scope.row.applicationTime) }}
+              </template>
+          </el-table-column>
+          <el-table-column label="登录时间" width="180">
+              <template #default="scope">
+                  {{ scope.row.loginTime || '-' }}
+              </template>
+          </el-table-column>
+          
+          <el-table-column label="在线时长" width="150">
+              <template #default="scope">
+                  {{ scope.row.onlineDuration || '-' }}
               </template>
           </el-table-column>
           <el-table-column prop="userIntro" label="备注" />
@@ -100,7 +117,7 @@
 <script setup>
 import { Search } from '@element-plus/icons-vue'
 import { ref, onMounted, reactive, nextTick } from 'vue'
-import { queryAll, queryAllWithPagination, addUser, editUser, deleteUser } from "../../api/getUser"
+import { queryAll, queryAllWithPagination, addUser, editUser, deleteUser, getOnlineDuration, LogInTimeByUsername } from "../../api/getUser"
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getOnlineUserCount } from "../../api/user" // 导入API
 import { addLog } from "../../api/log"
@@ -125,9 +142,7 @@ onMounted(async () => {
 // 分页获取数据
 const fetchData = async () => {
     try {
-     
         if (searchInput.value) {
-            // 如果有搜索内容，使用已过滤的数据进行分页
             const start = (currentPage.value - 1) * pageSize.value
             const end = start + pageSize.value
             tableData.value = originalTableData.value
@@ -137,8 +152,34 @@ const fetchData = async () => {
                 )
                 .slice(start, end)
         } else {
-            // 如果没有搜索内容，正常获取分页数据
             tableData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
+        }
+        
+        // 获取每个用户的登录时间并更新在线状态
+        for (const user of tableData.value) {
+            try {
+                const response = await LogInTimeByUsername(user.userName)
+                if (response ) {
+                    user.loginTime = response
+                    user.tableStatus = true
+                    // 如果用户在线，获取在线时长
+                    const durationResponse = await getOnlineDuration(user.userName)
+                    if (durationResponse ) {
+                        user.onlineDuration = durationResponse
+                    } else {
+                        user.onlineDuration = '-'
+                    }
+                } else {
+                    user.loginTime = '-'
+                    user.tableStatus = false
+                    user.onlineDuration = '-' // 用户不在线，直接设置为-
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error)
+                user.loginTime = '-'
+                user.tableStatus = false
+                user.onlineDuration = '-'
+            }
         }
     } catch (error) {
         console.error('Error fetching data: ', error)
@@ -486,6 +527,8 @@ const fetchOnlineUsers = async () => {
 .online-user {
   position: relative;
   margin-bottom: 20px;
+  color: #67c23a; /* 在线用户绿色 */
+  font-weight: 500;
 }
 
 .online-user-card {
@@ -520,5 +563,9 @@ const fetchOnlineUsers = async () => {
   font-size: 24px;
   color: white;
   font-weight: 600;
+}
+
+.offline-user {
+  color: #909399; /* 离线用户灰色 */
 }
 </style>
