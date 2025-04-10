@@ -44,6 +44,8 @@
     "util": "^0.12.5",
     "uuid": "^11.1.0",
     "vue-router": "^4.2.5",
+    "vue-tree-chart": "^1.2.9",
+    "vue-tree-chart-3": "^1.2.9",
     "vuex": "^4.0.2"
   },
   "devDependencies": {

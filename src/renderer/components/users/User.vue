@@ -7,12 +7,16 @@
         <!-- 搜索栏 -->
         <div class="header-section">
             <el-button type="primary" @click="showAddDialog">
-                <el-icon style="margin-right: 8px;"><Plus /></el-icon>
+                <el-icon style="margin-right: 8px;">
+                    <Plus />
+                </el-icon>
                 添加产权
             </el-button>
             <!-- 修改过期提示 -->
             <div :class="['expiration-warning', isCollapsed ? 'collapsed' : '']" @click="toggleWarning">
-                <el-icon color="#F56C6C"><Warning /></el-icon>
+                <el-icon color="#F56C6C">
+                    <Warning />
+                </el-icon>
                 <span v-if="!isCollapsed">
                     有{{ expiredCount }}条产权已过期，请及时处理。
                     <span class="view-link" @click.stop="showExpiredProperties">点击查看</span>
@@ -21,15 +25,11 @@
                     <Close />
                 </el-icon>
             </div>
-            <el-input
-                v-model="searchText"
-                placeholder="请输入产权编号"
-                style="width: 300px;"
-                clearable
-                @input="filterTable"
-            >
+            <el-input v-model="searchText" placeholder="请输入产权编号" style="width: 300px;" clearable @input="filterTable">
                 <template #prefix>
-                    <el-icon><Search /></el-icon>
+                    <el-icon>
+                        <Search />
+                    </el-icon>
                 </template>
             </el-input>
         </div>
@@ -79,11 +79,32 @@
         </el-table>
 
         <!-- 分页 -->
-        <div style="margin-top: 30px;">
+        <!-- <div style="margin-top: 30px;">
             <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
                 @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[10, 15, 20]"
                 layout="total, sizes, prev, pager, next, jumper" :total="total">
             </el-pagination>
+        </div> -->
+
+        <div class="pagination-controls">
+            <div class="page-size-select">
+                <label>每页显示:</label>
+                <select v-model="pageSize" @change="changePageSize">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select>
+            </div>
+            <div class="page-buttons">
+                <button class="page-btn" :disabled="currentPage === 1" @click="prevPage">
+                    上一页
+                </button>
+                <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+                <button class="page-btn" :disabled="currentPage === totalPages" @click="nextPage">
+                    下一页
+                </button>
+            </div>
         </div>
 
         <!-- 续期对话框 -->
@@ -92,14 +113,8 @@
                 <p><strong>产权编号：</strong>{{ selectedProperty.intellectualNo }}</p>
                 <p><strong>产权名称：</strong>{{ selectedProperty.intellectualName }}</p>
                 <el-form-item label="新的过期时间">
-                    <el-date-picker
-                        v-model="renewDate"
-                        type="date"
-                        placeholder="选择新的过期时间"
-                        format="YYYY-MM-DD"
-                        value-format="YYYY-MM-DD"
-                        style="width: 100%;"
-                    />
+                    <el-date-picker v-model="renewDate" type="date" placeholder="选择新的过期时间" format="YYYY-MM-DD"
+                        value-format="YYYY-MM-DD" style="width: 100%;" />
                 </el-form-item>
             </div>
             <template #footer>
@@ -123,7 +138,8 @@
                     <el-input v-model="propertyForm.projectNo" />
                 </el-form-item>
                 <el-form-item label="产权类型">
-                    <el-select v-model="propertyForm.intellectualPropertyType" placeholder="请选择产权类型" style="width: 100%;">
+                    <el-select v-model="propertyForm.intellectualPropertyType" placeholder="请选择产权类型"
+                        style="width: 100%;">
                         <el-option label="发明专利" value="发明专利" />
                         <el-option label="实用新型专利" value="实用新型专利" />
                         <el-option label="外观设计专利" value="外观设计专利" />
@@ -131,39 +147,19 @@
                     </el-select>
                 </el-form-item>
                 <el-form-item label="所属单位">
-                    <el-select
-                        v-model="propertyForm.organizationId"
-                        placeholder="请选择所属单位"
-                        style="width: 100%;"
-                        filterable
-                    >
-                        <el-option
-                            v-for="org in organizationList"
-                            :key="org.organizationId"
-                            :label="org.organizationName"
-                            :value="org.organizationId"
-                        />
+                    <el-select v-model="propertyForm.organizationId" placeholder="请选择所属单位" style="width: 100%;"
+                        filterable>
+                        <el-option v-for="org in organizationList" :key="org.organizationId"
+                            :label="org.organizationName" :value="org.organizationId" />
                     </el-select>
                 </el-form-item>
                 <el-form-item label="生效时间">
-                    <el-date-picker
-                        v-model="propertyForm.applicationDate"
-                        type="date"
-                        placeholder="选择生效时间"
-                        format="YYYY-MM-DD"
-                        value-format="YYYY-MM-DD"
-                        style="width: 100%;"
-                    />
+                    <el-date-picker v-model="propertyForm.applicationDate" type="date" placeholder="选择生效时间"
+                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%;" />
                 </el-form-item>
                 <el-form-item label="过期时间">
-                    <el-date-picker
-                        v-model="propertyForm.expirationDate"
-                        type="date"
-                        placeholder="选择过期时间"
-                        format="YYYY-MM-DD"
-                        value-format="YYYY-MM-DD"
-                        style="width: 100%;"
-                    />
+                    <el-date-picker v-model="propertyForm.expirationDate" type="date" placeholder="选择过期时间"
+                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%;" />
                 </el-form-item>
                 <el-form-item label="产权状态">
                     <el-select v-model="propertyForm.renewalStatus" placeholder="请选择产权状态" style="width: 100%;">
@@ -194,7 +190,7 @@ import { getAllCompanies } from '../../api/companyInfo'
 const tableData = ref([])   //产权信息列表
 const total = ref(0)   //产权总数
 const currentPage = ref(1)  // 当前页码
-const pageSize = ref(10)  // 每页数量（可通过下拉框选择）
+const pageSize = ref(10)  // 每页数量（可通过下拉框选择）  // 总页数
 
 // 新增图表相关代码
 const chartRef = ref(null)
@@ -221,13 +217,13 @@ const countPropertyTypes = (data) => {
         实用新型专利: 0,
         外观设计专利: 0
     };
-    
+
     data.forEach(item => {
         if (typeCounts.hasOwnProperty(item.intellectualPropertyType)) {
             typeCounts[item.intellectualPropertyType]++;
         }
     });
-    
+
     return typeCounts;
 }
 
@@ -242,7 +238,7 @@ const initChart = () => {
 // 更新图表数据
 const updateChart = () => {
     const typeCounts = countPropertyTypes(tableData.value);
-    
+
     const option = {
         title: {
             text: '知识产权类型统计',
@@ -297,7 +293,7 @@ const updateChart = () => {
             barWidth: '40%'
         }]
     };
-    
+
     chartInstance.setOption(option);
 };
 
@@ -333,10 +329,10 @@ const fetchData = async () => {
         } else if (currentStatusFilter.value === 'expired') {
             filteredData = allData.filter(item => item.renewalStatus === false)
         }
-        
+
         // 更新总数
         total.value = filteredData.length
-        
+
         // 手动进行分页
         const start = (currentPage.value - 1) * pageSize.value
         const end = start + pageSize.value
@@ -346,15 +342,40 @@ const fetchData = async () => {
     }
 }
 
-const handlePageSizeChange = (newSize) => {
-    currentPage.value = 1
-    pageSize.value = newSize
-    fetchData()
+// const handlePageSizeChange = (newSize) => {
+//     currentPage.value = 1
+//     pageSize.value = newSize
+//     fetchData()
+// }
+
+// const handleCurrentChange = (newPage) => {
+//     currentPage.value = newPage
+//     fetchData()
+// }
+const updatePagination = () => {
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    tableData.value = tableData.value.slice(start, end)
+    totalPages.value = Math.ceil(tableData.value.length / pageSize.value)
 }
 
-const handleCurrentChange = (newPage) => {
-    currentPage.value = newPage
-    fetchData()
+const changePageSize = () => {
+    currentPage.value = 1
+    updatePagination()
+}
+
+const nextPage = () => {
+    if (currentPage.value < totalPages.value) {
+        currentPage.value++
+        updatePagination()
+    }
+}
+
+const prevPage = () => {
+    if (currentPage.value > 1) {
+        currentPage.value--
+        updatePagination()
+    }
 }
 
 const initTableData = async () => {
@@ -369,7 +390,7 @@ const searchText = ref('')
 // 过滤表格数据
 const filteredTableData = computed(() => {
     if (!searchText.value) return tableData.value
-    return tableData.value.filter(item => 
+    return tableData.value.filter(item =>
         item.intellectualNo.includes(searchText.value)
     )
 })
@@ -404,7 +425,7 @@ const propertyForm = ref({
     expirationDate: '',
     tableStatus: true,
     auditFlag: 1,
-    
+
 })
 
 // 显示添加对话框
@@ -421,7 +442,7 @@ const showAddDialog = () => {
         expirationDate: '',
         tableStatus: true,
         auditFlag: 1,
-       
+
     }
     propertyDialogVisible.value = true
 }
@@ -441,10 +462,10 @@ const saveProperty = async () => {
             org => org.organizationId === propertyForm.value.organizationId
         );
         propertyForm.value.organizationName = selectedOrg?.organizationName || '';
-        
+
         // 创建表单数据的副本，以便修改日期格式
         const formData = { ...propertyForm.value }
-        
+
         // 处理日期格式，添加固定的时分秒
         if (formData.applicationDate) {
             formData.applicationDate = `${formData.applicationDate} 00:00:00`
@@ -452,7 +473,7 @@ const saveProperty = async () => {
         if (formData.expirationDate) {
             formData.expirationDate = `${formData.expirationDate} 00:00:00`
         }
-        
+
         if (dialogMode.value === 'add') {
             // 调用添加API
             await addProperty(formData)
@@ -487,7 +508,7 @@ const saveProperty = async () => {
 
 // 删除操作
 const deleteProperty = (row) => {
-   
+
     ElMessageBox.confirm(
         `确定要删除产权 "${row.intellectualName}" 吗？`,
         '删除确认',
@@ -497,26 +518,26 @@ const deleteProperty = (row) => {
             type: 'warning',
         }
     )
-    .then(async () => {
-        try {
-            await apiDeleteProperty(row.intellectualPropertyId)
-            ElMessage.success('删除成功')
-            // 添加日志
-            await addLog({
-                userId: localStorage.getItem('userId'),
-                logIntro: `删除产权信息：${row.intellectualName}`,
-                logTime: new Date().toISOString().split('T')[0],
-                tableStatus: true
-            })
-            // 刷新表格数据
-            initTableData()
-        } catch (error) {
-            ElMessage.error(`删除失败: ${error.message}`)
-        }
-    })
-    .catch(() => {
-        ElMessage.info('已取消删除')
-    })
+        .then(async () => {
+            try {
+                await apiDeleteProperty(row.intellectualPropertyId)
+                ElMessage.success('删除成功')
+                // 添加日志
+                await addLog({
+                    userId: localStorage.getItem('userId'),
+                    logIntro: `删除产权信息：${row.intellectualName}`,
+                    logTime: new Date().toISOString().split('T')[0],
+                    tableStatus: true
+                })
+                // 刷新表格数据
+                initTableData()
+            } catch (error) {
+                ElMessage.error(`删除失败: ${error.message}`)
+            }
+        })
+        .catch(() => {
+            ElMessage.info('已取消删除')
+        })
 }
 
 // 续期操作
@@ -551,7 +572,7 @@ const confirmRenew = async () => {
             tableStatus: true
         })
         renewDialogVisible.value = false
-        
+
         // 刷新表格数据
         initTableData()
     } catch (error) {
@@ -568,7 +589,7 @@ const handleStatusFilter = (command) => {
 
 // 计算过期产权数量
 const expiredCount = computed(() => {
-  return tableData.value.filter(item => item.renewalStatus === false).length;
+    return tableData.value.filter(item => item.renewalStatus === false).length;
 });
 
 // 修改状态控制
@@ -576,23 +597,23 @@ const isCollapsed = ref(false);
 
 // 新增关闭并折叠函数
 const collapseWarning = () => {
-  isCollapsed.value = true;
-  handleStatusFilter('all');
+    isCollapsed.value = true;
+    handleStatusFilter('all');
 };
 
 // 修改切换提示函数
 const toggleWarning = () => {
-  if (isCollapsed.value) {
-    isCollapsed.value = false;
-  } else {
-    isCollapsed.value = !isCollapsed.value;
-  }
+    if (isCollapsed.value) {
+        isCollapsed.value = false;
+    } else {
+        isCollapsed.value = !isCollapsed.value;
+    }
 };
 
 // 修改显示过期产权函数
 const showExpiredProperties = () => {
-  isCollapsed.value = false; // 确保提示信息展开
-  handleStatusFilter('expired');
+    isCollapsed.value = false; // 确保提示信息展开
+    handleStatusFilter('expired');
 };
 </script>
 
@@ -764,50 +785,104 @@ const showExpiredProperties = () => {
 
 /* 修改过期提示样式 */
 .expiration-warning {
-  margin-left: 20px;
-  padding: 8px 16px;
-  background-color: #fef0f0;
-  border-radius: 4px;
-  color: #f56C6C;
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  position: relative;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  padding-right: 40px; /* 为关闭按钮留出空间 */
+    margin-left: 20px;
+    padding: 8px 16px;
+    background-color: #fef0f0;
+    border-radius: 4px;
+    color: #f56C6C;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding-right: 40px;
+    /* 为关闭按钮留出空间 */
 }
 
 /* 确保折叠状态下的点击区域 */
 .expiration-warning.collapsed {
-  cursor: pointer;
-  padding: 8px;
-  width: 40px;
-  justify-content: center;
+    cursor: pointer;
+    padding: 8px;
+    width: 40px;
+    justify-content: center;
 }
 
 .expiration-warning.collapsed .el-icon:not(.close-icon) {
-  margin-right: 0;
+    margin-right: 0;
 }
 
 .expiration-warning.collapsed .view-link,
-.expiration-warning.collapsed > span {
-  display: none;
+.expiration-warning.collapsed>span {
+    display: none;
 }
 
 /* 修改关闭按钮样式 */
 .close-icon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.3s ease;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
 }
 
 .close-icon:hover {
-  color: #909399;
+    color: #909399;
+}
+
+
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-top: 1px solid #ebeef5;
+}
+
+.page-size-select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.page-size-select select {
+    padding: 6px 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+}
+
+.page-buttons {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-btn {
+    padding: 6px 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-btn:hover:not(:disabled) {
+    background-color: #f5f7fa;
+    border-color: #c0c4cc;
+}
+
+.page-info {
+    font-size: 14px;
+    color: #606266;
 }
 </style>
 

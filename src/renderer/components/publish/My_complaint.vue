@@ -30,13 +30,10 @@
             </td>
             <td>{{ formatDate(complaint.complaintTime) }}</td>
             <td>
-              <button 
-                class="delete-btn" 
-                :class="{ disabled: complaint.complaintProcess === 1 }"
+              <button class="delete-btn" :class="{ disabled: complaint.complaintProcess === 1 }"
                 :disabled="complaint.complaintProcess === 1"
                 :title="complaint.complaintProcess === 1 ? '受理中的投诉无法删除' : ''"
-                @click="handleDelete(complaint.complaintId)"
-              >
+                @click="handleDelete(complaint.complaintId)">
                 删除
               </button>
             </td>
@@ -80,13 +77,13 @@ export default {
     const fetchComplaints = async () => {
       loading.value = true;
       error.value = null;
-      
+
       try {
         const userId = localStorage.getItem('userId');
         if (!userId) {
           throw new Error('用户未登录');
         }
-        
+
         const response = await queryComplaintByUserId(userId);
         complaints.value = response || [];
       } catch (err) {
@@ -240,7 +237,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   padding: 12px 8px;
   text-align: left;
   border-bottom: 1px solid #ebeef5;

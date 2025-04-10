@@ -9,11 +9,17 @@ import router from './router'
 
 
 const app = createApp(App)
+
 app.use(router) //注册路由
 app.use(ElementPlus)
 app.use(ElementPlus, {
     locale: zhCn
 })
 app.mount('#app')
+
+
+
+
+
 
 

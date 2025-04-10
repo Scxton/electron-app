@@ -1,181 +1,189 @@
 <template>
   <el-col :span="24">
-      <!-- Add statistics cards -->
-      <el-row :gutter="20" class="statistics-row">
-          <el-col :span="4">
-              <el-card shadow="hover" class="statistics-card">
-                  <div class="statistics-content">
-                      <div class="statistics-title">总投诉数</div>
-                      <div class="statistics-number total">{{ totalComplaints }}</div>
-                  </div>
-              </el-card>
-          </el-col>
-          <el-col :span="4">
-              <el-card shadow="hover" class="statistics-card">
-                  <div class="statistics-content">
-                      <div class="statistics-title infringement">侵权投诉</div>
-                      <div class="statistics-number infringement">{{ infringementCount }}</div>
-                  </div>
-              </el-card>
-          </el-col>
-          <el-col :span="4">
-              <el-card shadow="hover" class="statistics-card">
-                  <div class="statistics-content">
-                      <div class="statistics-title false-info">虚假信息</div>
-                      <div class="statistics-number false-info">{{ falseInfoCount }}</div>
-                  </div>
-              </el-card>
-          </el-col>
-          <el-col :span="4">
-              <el-card shadow="hover" class="statistics-card">
-                  <div class="statistics-content">
-                      <div class="statistics-title other">其他投诉</div>
-                      <div class="statistics-number other">{{ otherCount }}</div>
-                  </div>
-              </el-card>
-          </el-col>
-      </el-row>
+    <!-- Add statistics cards -->
+    <el-row :gutter="20" class="statistics-row">
+      <el-col :span="4">
+        <el-card shadow="hover" class="statistics-card">
+          <div class="statistics-content">
+            <div class="statistics-title">总投诉数</div>
+            <div class="statistics-number total">{{ totalComplaints }}</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card shadow="hover" class="statistics-card">
+          <div class="statistics-content">
+            <div class="statistics-title infringement">侵权投诉</div>
+            <div class="statistics-number infringement">{{ infringementCount }}</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card shadow="hover" class="statistics-card">
+          <div class="statistics-content">
+            <div class="statistics-title false-info">虚假信息</div>
+            <div class="statistics-number false-info">{{ falseInfoCount }}</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card shadow="hover" class="statistics-card">
+          <div class="statistics-content">
+            <div class="statistics-title other">其他投诉</div>
+            <div class="statistics-number other">{{ otherCount }}</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-      <!-- Status statistics -->
-      <el-row :gutter="20" class="statistics-row">
-          <el-col :span="4">
-              <el-card shadow="hover" class="statistics-card">
-                  <div class="statistics-content">
-                      <div class="statistics-title pending">未受理</div>
-                      <div class="statistics-number pending">{{ pendingCount }}</div>
-                  </div>
-              </el-card>
-          </el-col>
-          <el-col :span="4">
-              <el-card shadow="hover" class="statistics-card">
-                  <div class="statistics-content">
-                      <div class="statistics-title processing">受理中</div>
-                      <div class="statistics-number processing">{{ processingCount }}</div>
-                  </div>
-              </el-card>
-          </el-col>
-          <el-col :span="4">
-              <el-card shadow="hover" class="statistics-card">
-                  <div class="statistics-content">
-                      <div class="statistics-title completed">已完成</div>
-                      <div class="statistics-number completed">{{ completedCount }}</div>
-                  </div>
-              </el-card>
-          </el-col>
-      </el-row>
+    <!-- Status statistics -->
+    <el-row :gutter="20" class="statistics-row">
+      <el-col :span="4">
+        <el-card shadow="hover" class="statistics-card">
+          <div class="statistics-content">
+            <div class="statistics-title pending">未受理</div>
+            <div class="statistics-number pending">{{ pendingCount }}</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card shadow="hover" class="statistics-card">
+          <div class="statistics-content">
+            <div class="statistics-title processing">受理中</div>
+            <div class="statistics-number processing">{{ processingCount }}</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card shadow="hover" class="statistics-card">
+          <div class="statistics-content">
+            <div class="statistics-title completed">已完成</div>
+            <div class="statistics-number completed">{{ completedCount }}</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-      <el-table :data="paginatedData" style="width: 100%" border
-          :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
-          <el-table-column prop="id" label="案件编号" width="180" />
-          <el-table-column prop="Pid" label="投诉专利编号" width="180" />
-          <el-table-column prop="user" label="投诉用户" />
-          <el-table-column prop="type" label="投诉类型">
-              <template #header>
-                  <el-dropdown @command="handleTypeFilter">
-                      <span class="el-dropdown-link">
-                          投诉类型<el-icon class="el-icon--right"><arrow-down /></el-icon>
-                      </span>
-                      <template #dropdown>
-                          <el-dropdown-menu>
-                              <el-dropdown-item command="all">全部</el-dropdown-item>
-                              <el-dropdown-item command="infringement">侵权</el-dropdown-item>
-                              <el-dropdown-item command="false_information">虚假信息</el-dropdown-item>
-                              <el-dropdown-item command="other">其他</el-dropdown-item>
-                          </el-dropdown-menu>
-                      </template>
-                  </el-dropdown>
-              </template>
-              <template #default="scope">
-                  <el-tag :type="getTypeTagType(scope.row.type)">
-                      {{ scope.row.type }}
-                  </el-tag>
-              </template>
-          </el-table-column>
-          <el-table-column prop="other" label="投诉详情" />
-          <el-table-column prop="status" label="受理状态">
-              <template #header>
-                  <el-dropdown @command="handleStatusFilter">
-                      <span class="el-dropdown-link">
-                          受理状态<el-icon class="el-icon--right"><arrow-down /></el-icon>
-                      </span>
-                      <template #dropdown>
-                          <el-dropdown-menu>
-                              <el-dropdown-item command="all">全部</el-dropdown-item>
-                              <el-dropdown-item command="0">未受理</el-dropdown-item>
-                              <el-dropdown-item command="1">受理中</el-dropdown-item>
-                              <el-dropdown-item command="2">已完成</el-dropdown-item>
-                          </el-dropdown-menu>
-                      </template>
-                  </el-dropdown>
-              </template>
-              <template #default="scope">
-                  <el-tag :type="getStatusType(scope.row.status)">
-                      {{ getStatusText(scope.row.status) }}
-                  </el-tag>
-              </template>
-          </el-table-column>
-          <el-table-column label="操作">
-              <template #default="scope">
-                  <el-button size="small" type="primary" @click="handleAccept(scope.$index, scope.row)">
-                      受理
-                  </el-button>
-                  <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
-                      删除
-                  </el-button>
-                  <el-button size="small" type="info" @click="handleDownload(scope.$index, scope.row)">
-                      下载
-                  </el-button>
-                  <div>
-                      <el-dialog title="知识产权投诉申请" :visible.sync="addDialogVisible">
-                          <el-form ref="form" :model="form" label-width="120px">
-                              <!-- <el-form-item label="节点IP" label-position="right">
+    <el-table :data="paginatedData" style="width: 100%" border
+      :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
+      <el-table-column prop="id" label="案件编号" width="180" />
+      <el-table-column prop="Pid" label="投诉专利编号" width="180" />
+      <el-table-column prop="user" label="投诉用户" />
+      <el-table-column prop="type" label="投诉类型">
+        <template #header>
+          <el-dropdown @command="handleTypeFilter">
+            <span class="el-dropdown-link">
+              投诉类型<el-icon class="el-icon--right"><arrow-down /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="all">全部</el-dropdown-item>
+                <el-dropdown-item command="infringement">侵权</el-dropdown-item>
+                <el-dropdown-item command="false_information">虚假信息</el-dropdown-item>
+                <el-dropdown-item command="other">其他</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <template #default="scope">
+          <el-tag :type="getTypeTagType(scope.row.type)">
+            {{ scope.row.type }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="other" label="投诉详情" />
+      <el-table-column prop="status" label="受理状态">
+        <template #header>
+          <el-dropdown @command="handleStatusFilter">
+            <span class="el-dropdown-link">
+              受理状态<el-icon class="el-icon--right"><arrow-down /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="all">全部</el-dropdown-item>
+                <el-dropdown-item command="0">未受理</el-dropdown-item>
+                <el-dropdown-item command="1">受理中</el-dropdown-item>
+                <el-dropdown-item command="2">已完成</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <template #default="scope">
+          <el-tag :type="getStatusType(scope.row.status)">
+            {{ getStatusText(scope.row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作">
+        <template #default="scope">
+          <el-button size="small" type="primary" @click="handleAccept(scope.$index, scope.row)">
+            受理
+          </el-button>
+          <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
+            删除
+          </el-button>
+          <el-button size="small" type="info" @click="handleDownload(scope.$index, scope.row)">
+            下载
+          </el-button>
+          <div>
+            <el-dialog title="知识产权投诉申请" :visible.sync="addDialogVisible">
+              <el-form ref="form" :model="form" label-width="120px">
+                <!-- <el-form-item label="节点IP" label-position="right">
                       <el-input v-model="form.ip" ></el-input>
                   </el-form-item> -->
-                              <el-form-item label="侵权专利名称" label-position="right">
-                                  <el-input v-model="form.userId" disabled></el-input>
-                              </el-form-item>
-                              <el-form-item label="侵权专利编号" label-position="right">
-                                  <el-input v-model="form.userName" disabled></el-input>
-                              </el-form-item>
-                              <el-form-item label="侵权方" label-position="right">
-                                  <el-input v-model="form.userRole"></el-input>
-                              </el-form-item>
-                              <el-form-item label="投诉日期" label-position="right">
-                                  <el-input v-model="form.comDate"></el-input>
-                              </el-form-item>
-                              <el-form-item label="侵权行为描述" label-position="right">
-                                  <el-input v-model="form.description"></el-input>
-                              </el-form-item>
-                              <el-upload class="upload-demo" drag
-                                  action="https://run.mocky.io/v3/9d059bf9-4660-45f2-925d-ce80ad6c4d15" multiple>
-                                  <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-                                  <div class="el-upload__text">
-                                      <em>点击此处上传证明材料</em>
-                                  </div>
-                              </el-upload>
-                              <el-form-item>
-                                  <el-button type="primary" @click="handleAdd">确定</el-button>
-                                  <el-button @click="cancelAdd">取消</el-button>
-                              </el-form-item>
-                          </el-form>
-                      </el-dialog>
+                <el-form-item label="侵权专利名称" label-position="right">
+                  <el-input v-model="form.userId" disabled></el-input>
+                </el-form-item>
+                <el-form-item label="侵权专利编号" label-position="right">
+                  <el-input v-model="form.userName" disabled></el-input>
+                </el-form-item>
+                <el-form-item label="侵权方" label-position="right">
+                  <el-input v-model="form.userRole"></el-input>
+                </el-form-item>
+                <el-form-item label="投诉日期" label-position="right">
+                  <el-input v-model="form.comDate"></el-input>
+                </el-form-item>
+                <el-form-item label="侵权行为描述" label-position="right">
+                  <el-input v-model="form.description"></el-input>
+                </el-form-item>
+                <el-upload class="upload-demo" drag
+                  action="https://run.mocky.io/v3/9d059bf9-4660-45f2-925d-ce80ad6c4d15" multiple>
+                  <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                  <div class="el-upload__text">
+                    <em>点击此处上传证明材料</em>
                   </div>
-              </template>
-          </el-table-column>
-      </el-table>
+                </el-upload>
+                <el-form-item>
+                  <el-button type="primary" @click="handleAdd">确定</el-button>
+                  <el-button @click="cancelAdd">取消</el-button>
+                </el-form-item>
+              </el-form>
+            </el-dialog>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
 
-      <div class="pagination-container">
-        <el-pagination
-          background
-          layout="total, sizes, prev, pager, next, jumper"
-          :page-sizes="[10, 15, 20]"
-          :page-size="pageSize"
-          :current-page="currentPage"
-          :total="total"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+    <!-- <div class="pagination-container">
+      <el-pagination background layout="total, sizes, prev, pager, next, jumper" :page-sizes="[10, 15, 20]"
+        :page-size="pageSize" :current-page="currentPage" :total="total" @size-change="handleSizeChange"
+        @current-change="handleCurrentChange" />
+    </div> -->
+
+    <div class="pagination">
+      <span>每页显示:</span>
+      <select v-model="pageSize">
+        <option value="5">5</option>
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+      </select>
+      <div class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</div>
+      <div class="page-controls">
+        <button @click="prevPage" :disabled="currentPage === 1">上一页</button>
+        <button @click="nextPage" :disabled="currentPage === totalPages">下一页</button>
       </div>
+    </div>
 
   </el-col>
   <!-- <div class="pag">
@@ -189,7 +197,7 @@
       </el-col> -->
   <!-- 输入框和按钮并列 -->
   <div class="Applybutton">
-      <el-button type="primary" @click="handleApply">专利投诉申请</el-button>
+    <el-button type="primary" @click="handleApply">专利投诉申请</el-button>
   </div>
 
 </template>
@@ -221,6 +229,11 @@ const currentPage = ref(1);
 const pageSize = ref(10);
 const total = computed(() => tableData.value.length);
 
+const totalPages = computed(() => {
+  return Math.ceil(total.value / pageSize.value);
+});
+
+
 // Update the tableData computed property
 const paginatedData = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
@@ -229,14 +242,28 @@ const paginatedData = computed(() => {
 });
 
 // Add pagination event handlers
-const handleSizeChange = (val: number) => {
-  pageSize.value = val;
-  currentPage.value = 1;
+// const handleSizeChange = (val: number) => {
+//   pageSize.value = val;
+//   currentPage.value = 1;
+// };
+
+// const handleCurrentChange = (val: number) => {
+//   currentPage.value = val;
+// };
+
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
 };
 
-const handleCurrentChange = (val: number) => {
-  currentPage.value = val;
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
 };
+
 
 // 获取所有投诉信息
 const fetchComplaints = async () => {
@@ -345,20 +372,20 @@ const handleMore = (index: number, row: Complaint) => {
 const handleApply = () => {
   console.log('专利投诉申请')
   ElMessageBox.confirm('此操作将进行专利投诉, 是否继续?', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
   }).then(() => {
-      ElMessage({
-          type: 'success',
-          message: '申请成功!',
-      })
+    ElMessage({
+      type: 'success',
+      message: '申请成功!',
+    })
 
   }).catch(() => {
-      ElMessage({
-          type: 'info',
-          message: '已取消',
-      })
+    ElMessage({
+      type: 'info',
+      message: '已取消',
+    })
   })
 }
 
@@ -411,7 +438,7 @@ const cancelAdd = () => {
 const handleTypeFilter = (command: string) => {
   selectedType.value = command;
   let filteredData = [...allComplaints.value];
-  
+
   // First apply type filter
   if (command !== 'all') {
     filteredData = filteredData.filter(item => {
@@ -419,19 +446,19 @@ const handleTypeFilter = (command: string) => {
       return complaintType === command;
     });
   }
-  
+
   // Then apply status filter if active
   if (selectedStatus.value !== 'all') {
     filteredData = filteredData.filter(item => item.status === parseInt(selectedStatus.value));
   }
-  
+
   tableData.value = filteredData;
 };
 
 const handleStatusFilter = (command: string) => {
   selectedStatus.value = command;
   let filteredData = [...allComplaints.value];
-  
+
   // First apply type filter if active
   if (selectedType.value !== 'all') {
     filteredData = filteredData.filter(item => {
@@ -439,12 +466,12 @@ const handleStatusFilter = (command: string) => {
       return complaintType === selectedType.value;
     });
   }
-  
+
   // Then apply status filter
   if (command !== 'all') {
     filteredData = filteredData.filter(item => item.status === parseInt(command));
   }
-  
+
   tableData.value = filteredData;
 };
 
@@ -457,15 +484,15 @@ const getComplaintTypeMap = () => ({
 // Add computed properties for statistics
 const totalComplaints = computed(() => allComplaints.value.length);
 
-const infringementCount = computed(() => 
+const infringementCount = computed(() =>
   allComplaints.value.filter(complaint => complaint.type === '侵权').length
 );
 
-const falseInfoCount = computed(() => 
+const falseInfoCount = computed(() =>
   allComplaints.value.filter(complaint => complaint.type === '虚假信息').length
 );
 
-const otherCount = computed(() => 
+const otherCount = computed(() =>
   allComplaints.value.filter(complaint => complaint.type === '其他').length
 );
 
@@ -484,15 +511,15 @@ const getTypeTagType = (type: string) => {
 };
 
 // Add computed properties for status statistics
-const pendingCount = computed(() => 
+const pendingCount = computed(() =>
   allComplaints.value.filter(complaint => complaint.status === 0).length
 );
 
-const processingCount = computed(() => 
+const processingCount = computed(() =>
   allComplaints.value.filter(complaint => complaint.status === 1).length
 );
 
-const completedCount = computed(() => 
+const completedCount = computed(() =>
   allComplaints.value.filter(complaint => complaint.status === 2).length
 );
 
@@ -563,9 +590,10 @@ const handleAccept = (index: number, row: Complaint) => {
   margin-bottom: 20px;
 
 } */
-.el-table{
+.el-table {
   margin-top: 20px;
 }
+
 .Applybutton {
   display: flex;
   text-align: right;
@@ -668,7 +696,7 @@ const handleAccept = (index: number, row: Complaint) => {
 }
 
 /* Add spacing between statistics rows */
-.statistics-row + .statistics-row {
+.statistics-row+.statistics-row {
   margin-top: 30px;
 }
 
@@ -680,9 +708,41 @@ const handleAccept = (index: number, row: Complaint) => {
 }
 
 /* Add pagination styles */
-.pagination-container {
+/* .pagination-container {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+} */
+
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.pagination select {
+  margin: 0 10px;
+  padding: 5px;
+}
+
+
+.page-info {
+  margin: 0 15px;
+}
+
+.page-controls button {
+  padding: 5px 10px;
+  margin-left: 5px;
+  background-color: #f4f4f5;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.page-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 </style>

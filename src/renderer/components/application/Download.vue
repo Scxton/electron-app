@@ -4,15 +4,21 @@
     <el-card class="download-stats">
       <div class="stats-container">
         <div class="stat-item">
-          <el-icon><DataLine /></el-icon>
+          <el-icon>
+            <DataLine />
+          </el-icon>
           <span>总下载速度：{{ totalDownloadSpeed }} MB/s</span>
         </div>
         <div class="stat-item">
-          <el-icon><View /></el-icon>
+          <el-icon>
+            <View />
+          </el-icon>
           <span>活动任务：{{ activeDownloads }}</span>
         </div>
         <div class="stat-item">
-          <el-icon><Clock /></el-icon>
+          <el-icon>
+            <Clock />
+          </el-icon>
           <span>等待任务：{{ waitingDownloads }}</span>
         </div>
       </div>
@@ -20,37 +26,20 @@
 
     <!-- Download Actions -->
     <div class="download-actions">
-      <el-button 
-        type="primary" 
-        @click="openFileSelection"
-        icon="Plus"
-      >
+      <el-button type="primary" @click="openFileSelection" icon="Plus">
         添加下载
       </el-button>
-      <el-button 
-        type="success" 
-        @click="startAllDownloads"
-        :disabled="!canStartAll"
-      >
+      <el-button type="success" @click="startAllDownloads" :disabled="!canStartAll">
         全部开始
       </el-button>
-      <el-button 
-        type="danger" 
-        @click="pauseAllDownloads"
-        :disabled="!canPauseAll"
-      >
+      <el-button type="danger" @click="pauseAllDownloads" :disabled="!canPauseAll">
         全部暂停
       </el-button>
     </div>
 
     <!-- Download List -->
     <el-card class="download-list">
-      <el-table 
-        :data="downloadTasks" 
-        stripe 
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
-      >
+      <el-table :data="downloadTasks" stripe style="width: 100%" @selection-change="handleSelectionChange">
         <!-- Multiselect Column -->
         <el-table-column type="selection" width="55" />
 
@@ -74,10 +63,7 @@
 
         <el-table-column label="状态" prop="status" width="120">
           <template #default="{ row }">
-            <el-tag 
-              :type="getStatusType(row.status)" 
-              effect="light"
-            >
+            <el-tag :type="getStatusType(row.status)" effect="light">
               {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
@@ -85,37 +71,20 @@
 
         <el-table-column label="进度" width="200">
           <template #default="{ row }">
-            <el-progress 
-              :percentage="calculateProgress(row)" 
-              :status="getProgressStatus(row.status)"
-            />
+            <el-progress :percentage="calculateProgress(row)" :status="getProgressStatus(row.status)" />
           </template>
         </el-table-column>
 
         <el-table-column label="操作" width="180">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button 
-                v-if="row.status === 'paused'" 
-                type="success" 
-                link 
-                @click="resumeDownload(row)"
-              >
+              <el-button v-if="row.status === 'paused'" type="success" link @click="resumeDownload(row)">
                 继续
               </el-button>
-              <el-button 
-                v-if="row.status === 'downloading'" 
-                type="warning" 
-                link 
-                @click="pauseDownload(row)"
-              >
+              <el-button v-if="row.status === 'downloading'" type="warning" link @click="pauseDownload(row)">
                 暂停
               </el-button>
-              <el-button 
-                type="danger" 
-                link 
-                @click="deleteDownload(row)"
-              >
+              <el-button type="danger" link @click="deleteDownload(row)">
                 删除
               </el-button>
             </div>
@@ -125,21 +94,11 @@
     </el-card>
 
     <!-- File Selection Modal -->
-    <el-dialog 
-      v-model="fileSelectionDialogVisible" 
-      title="选择下载文件" 
-      width="600px"
-    >
+    <el-dialog v-model="fileSelectionDialogVisible" title="选择下载文件" width="600px">
       <el-form>
         <!-- 文件选择逻辑 -->
         <el-form-item label="选择文件">
-          <el-upload
-            multiple
-            drag
-            action="#"
-            :on-change="handleFileChange"
-            :auto-upload="false"
-          >
+          <el-upload multiple drag action="#" :on-change="handleFileChange" :auto-upload="false">
             <el-icon class="el-icon--upload"><upload-filled /></el-icon>
             <div class="el-upload__text">
               拖拽文件到此处或<em>点击上传</em>
@@ -157,15 +116,15 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { 
-  ElMessage, 
-  ElNotification 
+import {
+  ElMessage,
+  ElNotification
 } from 'element-plus'
-import { 
-  DataLine, 
-  View, 
-  Clock, 
-  UploadFilled 
+import {
+  DataLine,
+  View,
+  Clock,
+  UploadFilled
 } from '@element-plus/icons-vue'
 
 // Simulated download task structure
@@ -222,19 +181,19 @@ const totalDownloadSpeed = computed(() => {
     .toFixed(1)
 })
 
-const activeDownloads = computed(() => 
+const activeDownloads = computed(() =>
   downloadTasks.value.filter(task => task.status === 'downloading').length
 )
 
-const waitingDownloads = computed(() => 
+const waitingDownloads = computed(() =>
   downloadTasks.value.filter(task => task.status === 'paused').length
 )
 
-const canStartAll = computed(() => 
+const canStartAll = computed(() =>
   downloadTasks.value.some(task => task.status === 'paused')
 )
 
-const canPauseAll = computed(() => 
+const canPauseAll = computed(() =>
   downloadTasks.value.some(task => task.status === 'downloading')
 )
 
@@ -253,8 +212,8 @@ function formatFileSize(bytes) {
 }
 
 function calculateProgress(task) {
-  return task.totalSize > 0 
-    ? Math.round((task.downloadedSize / task.totalSize) * 100) 
+  return task.totalSize > 0
+    ? Math.round((task.downloadedSize / task.totalSize) * 100)
     : 0
 }
 

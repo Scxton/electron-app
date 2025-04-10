@@ -32,8 +32,7 @@ const routes = [
     path: '/publish',
     name: '成果上传',
     iconClass: 'fa fa-cloud-upload',
-    component: () => import('@renderer/views/home/Home.vue'),
-    
+    component: () => import('@renderer/views/home/Home.vue'),  
     children: [
       {
         path: '/publish/myAch',
