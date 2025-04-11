@@ -206,7 +206,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMain, ElMessage, ElMessageBox } from 'element-plus';
-import { queryAllComplaints, updateComplaintStatus, deleteComplaintById, downloadComplaintFile } from '../../api/patentComplaints';
+import { queryAllComplaints, updateComplaintStatus, updateComplaintStatusToAccepted, deleteComplaintById, downloadComplaintFile } from '../../api/patentComplaints';
 
 interface Complaint {
   id: string
@@ -544,6 +544,9 @@ const handleDownload = async (index: number, row: Complaint) => {
 
 // 添加受理处理函数
 const handleAccept = (index: number, row: Complaint) => {
+  // 点击受理立即将前段状态进行更新为受理中
+  row.status = 1; 
+  // await updateComplaintStatus(row.id, row.status);
   ElMessageBox.confirm('是否确认受理该投诉?', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -551,7 +554,10 @@ const handleAccept = (index: number, row: Complaint) => {
   }).then(async () => {
     try {
       // 将状态更新为受理中（状态码1）
+      // row.status = 0; // 更新状态为已完成
+      
       await updateComplaintStatus(row.id, row.status);
+      console.log('受理成功:', row);
       ElMessage({
         type: 'success',
         message: '受理成功'
@@ -561,6 +567,7 @@ const handleAccept = (index: number, row: Complaint) => {
     } catch (error) {
       console.error('受理失败:', error);
       ElMessage.error('受理失败');
+      // 如果受理失败，恢复状态为未受理
     }
   }).catch(() => {
     ElMessage({

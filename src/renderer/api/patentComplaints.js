@@ -62,7 +62,7 @@ export const updateComplaintStatus = (complaintId, status) => {
   console.log('[API]开始更新投诉状态:', { complaintId, status })
   return request({
     url: `/patentComplaints/complaintId`,
-    method: 'get',
+    method: 'post',
     params: {
       complaintId,
       status
@@ -77,6 +77,23 @@ export const updateComplaintStatus = (complaintId, status) => {
 }
 
 
+// export const updateComplaintStatusToAccepted = (complaintId, status) => {
+//   console.log('[API]开始更新投诉状态:', { complaintId, status })
+//   return request({
+//     url: `/patentComplaints/accept/complaintId`,
+//     method: 'post',
+//     params: {
+//       complaintId,
+//       status
+//     }
+//   }).then(response => {
+//     console.log('[API]状态更新响应:', response)
+//     return response
+//   }).catch(error => {
+//     console.error('[API]状态更新失败:', error)
+//     throw error
+//   })
+// }
 
 // 下载投诉证明材料
 export function downloadComplaintFile(fileName) {

@@ -285,6 +285,11 @@
     minimist "^1.2.6"
     plist "^3.0.5"
 
+"@electron/remote@^2.1.2":
+  version "2.1.2"
+  resolved "https://registry.npmmirror.com/@electron/remote/-/remote-2.1.2.tgz"
+  integrity sha512-EPwNx+nhdrTBxyCqXt/pftoQg/ybtWDW3DUWHafejvnB1ZGGfMpv6e15D8KeempocjXe78T7WreyGGb3mlZxdA==
+
 "@electron/universal@1.4.1":
   version "1.4.1"
   resolved "https://registry.npmmirror.com/@electron/universal/-/universal-1.4.1.tgz"
@@ -1923,7 +1928,7 @@ electron-vite@^1.0.27:
     magic-string "^0.30.1"
     picocolors "^1.0.0"
 
-electron@^25.6.0, electron@>=13.0.0:
+electron@^25.6.0, "electron@>= 13.0.0", electron@>=13.0.0:
   version "25.9.5"
   resolved "https://registry.npmmirror.com/electron/-/electron-25.9.5.tgz"
   integrity sha512-gM7GXUSd3JVRcYbBnNOtZeNnE5MCJjtZTT8QyIxJvpQ0Dh9dz3hTuEL62dOwnMFW/l47ACQ6es/8qi01P4QGZA==

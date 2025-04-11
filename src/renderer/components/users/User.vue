@@ -89,7 +89,7 @@
         <div class="pagination-controls">
             <div class="page-size-select">
                 <label>每页显示:</label>
-                <select v-model="pageSize" @change="changePageSize">
+                <select v-model="pageSize">
                     <option value="5">5</option>
                     <option value="10">10</option>
                     <option value="15">15</option>
@@ -337,6 +337,7 @@ const fetchData = async () => {
         const start = (currentPage.value - 1) * pageSize.value
         const end = start + pageSize.value
         tableData.value = filteredData.slice(start, end)
+     
     } catch (error) {
         console.error('Error fetching data: ', error)
     }
@@ -352,29 +353,34 @@ const fetchData = async () => {
 //     currentPage.value = newPage
 //     fetchData()
 // }
-const updatePagination = () => {
-    const start = (currentPage.value - 1) * pageSize.value
-    const end = start + pageSize.value
-    tableData.value = tableData.value.slice(start, end)
-    totalPages.value = Math.ceil(tableData.value.length / pageSize.value)
-}
 
-const changePageSize = () => {
-    currentPage.value = 1
-    updatePagination()
-}
+// const updatePagination = () => {
+//       const start = (currentPage.value - 1) * pageSize.value
+//       const end = start + pageSize.value
+//       paginatedAchievements.value = tableData.value.slice(start, end)
+//       total.value = Math.ceil(tableData.value.length / pageSize.value)
+//     }
+
+const totalPages = computed(() => {
+    return Math.ceil(tableData.value.length / pageSize.value) || 1;
+});
+
+// const changePageSize = () => {
+//     currentPage.value = 1
+//     updatePagination()
+// }
 
 const nextPage = () => {
     if (currentPage.value < totalPages.value) {
         currentPage.value++
-        updatePagination()
+        // updatePagination()
     }
 }
 
 const prevPage = () => {
     if (currentPage.value > 1) {
         currentPage.value--
-        updatePagination()
+        // updatePagination()
     }
 }
 
