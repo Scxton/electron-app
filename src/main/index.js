@@ -12,36 +12,72 @@ const path = require('path')
 const { net } = require('electron')
 
 
-
 let mainWindow = null // 🔁 改成 let，允许后续置为 null
 
-export function logoutFromServer(userId, userName) {
-  console.log('注销请求参数:', userId, userName)
+// export function logoutFromServer(userId, userName, token) {
+//   // const Token = global.Token
+//   console.log('注销请求参数:', userId, userName)
+//   return new Promise((resolve, reject) => {
+//     const request = net.request({
+//       method: 'POST',
+//       // url: 'http://localhost:8007/auth/logout?userId=${userId}&userName=${encodeURIComponent(userName)}',
+//       url: `http://localhost:8007/auth/logout?userId=${userId}&userName=${userName}`,
+//       headers: {
+//         'Content-Type': 'application/json',    
+//         'Authorization': "Bearer ${token}"
+//       }
+//     })
+//     // console.log('注销请求参数token:', global.token)
+//     // console.log('注销请求:', request)
+
+//     // const body = JSON.stringify({ userId, userName })
+//     // request.write(body)
+
+//     request.on('response', (response) => {
+//       console.log('✅ 注销接口响应状态码:', response.statusCode)
+//       resolve(response.statusCode)
+//     })
+
+//     request.on('error', (err) => {
+//       console.error('❌ 注销接口请求失败:', err)
+//       reject(err)
+//     })
+
+//     request.end()
+//   })
+// }
+
+function logoutFromServer(userId, userName, token) {
   return new Promise((resolve, reject) => {
+    const url = new URL('http://localhost:8007/auth/logout')
+    url.searchParams.set('userId', userId)
+    url.searchParams.set('userName', userName)
+
     const request = net.request({
       method: 'POST',
-      url: `http://localhost:8007/auth/logout?userId=${userId}&userName=${userName}`,
-      headers: {
-        'Content-Type': 'application/json',    
-        // 'Authorization': "Bearer ${token}"
-      }
+      url: url.toString()
     })
-    // console.log('注销请求参数token:', global.Token)
-    // console.log('注销请求:', request)
-    
-    request.on('response', (response) => {
-      console.log('✅ 注销接口响应状态码:', response.statusCode)
-      resolve(response.statusCode)
+
+    request.setHeader('Content-Type', 'application/json')
+    request.setHeader('Authorization', `Bearer ${token}`) // ✅ 必须带 Bearer 前缀
+
+    console.log('🚀 请求 headers:', request.getHeader('Authorization'))
+
+    request.on('response', (res) => {
+      console.log('✅ 响应状态:', res.statusCode)
+      resolve()
     })
 
     request.on('error', (err) => {
-      console.error('❌ 注销接口请求失败:', err)
+      console.error('❌ 请求失败:', err)
       reject(err)
     })
 
     request.end()
   })
 }
+
+
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -83,29 +119,29 @@ function createWindow() {
   //   app.quit() // 退出整个程序
   // })
 
-  ipcMain.on('user-login', (e, userName, userId) => {
+  ipcMain.on('user-login', (e, userName, userId, Token) => {
     global.userName = userName
     global.userId = userId
-    // global.Token = Token
-    console.log('主进程已接收到用户登录信息:', userName, userId)
+    global.Token = Token
+    console.log('主进程已接收到用户登录信息:', userName, userId, Token)
   })
 
 
   mainWindow.on('close', async (e) => {
-    console.log('userID', global.userId)
+    // console.log('userID', global.userId)
     e.preventDefault()
-    try {
-      console.log('用户名：...', global.userName)
+    // try {
+    // console.log('用户名：...', global.userName)
 
-      if (global.userId && global.userName) {
-        console.log('注销接口将被调用...')
-        await logoutFromServer(global.userId, global.userName)
-      }
-      await mainWindow.webContents.session.clearStorageData()
-      console.log('✅ 本地数据已清除')
-    } catch (err) {
-      console.error('⚠️ 关闭前处理失败:', err)
+    if (global.userId && global.userName) {
+      console.log('注销接口将被调用...')
+      await logoutFromServer(global.userId, global.userName, global.Token)
     }
+    await mainWindow.webContents.session.clearStorageData()
+    console.log('✅ 本地数据已清除')
+    // } catch (err) {
+    //   console.error('⚠️ 关闭前处理失败:', err)
+    // }
     mainWindow.destroy()
     app.quit()
   })

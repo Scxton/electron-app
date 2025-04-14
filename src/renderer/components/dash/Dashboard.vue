@@ -48,6 +48,7 @@ import { ref, onMounted } from 'vue'
 import { ElDialog, ElTooltip } from 'element-plus'
 import TreeChart from 'vue-tree-chart-3'
 import { Menu } from '@element-plus/icons-vue'
+import { getToken } from '../../http/token'
 
 // 选中的节点数据
 const selectedNode = ref(null)
@@ -58,9 +59,10 @@ const { ipcRenderer } = window.electron
 onMounted(() => {
   const userName = localStorage.getItem('username')
   const userId = localStorage.getItem('userId')
-  // const Token = localStorage.getItem('token')
+  const Token = getToken('token')
+  // console.log('Token为', Token) 
 
-  ipcRenderer.send('user-login', userName, userId)
+  ipcRenderer.send('user-login', userName, userId, Token)
 })
 
 
