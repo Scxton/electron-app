@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElDialog, ElTooltip } from 'element-plus'
 import TreeChart from 'vue-tree-chart-3'
 import { Menu } from '@element-plus/icons-vue'
@@ -52,6 +52,19 @@ import { Menu } from '@element-plus/icons-vue'
 // 选中的节点数据
 const selectedNode = ref(null)
 const showDialog = ref(false)
+
+const { ipcRenderer } = window.electron
+
+onMounted(() => {
+  const userName = localStorage.getItem('username')
+  const userId = localStorage.getItem('userId')
+  // const Token = localStorage.getItem('token')
+
+  ipcRenderer.send('user-login', userName, userId)
+})
+
+
+
 
 // 树形结构数据（含图标/状态/提示）
 const treeData = ref({

@@ -10,31 +10,17 @@
 import { onMounted } from 'vue';
 import { logoutTest } from './api/logout';
 
+// const { ipcRenderer } = window.electron;
+
+// ipcRenderer.send('user-login', localStorage.getItem('userId'),localStorage.getItem('username'))
+
 // onMounted(() => {
-  // ipcRenderer.on('force-close', () => {
-  // const userName = localStorage.getItem('userName')
-  // if (userName) {
-  //   navigator.sendBeacon('http://localhost:8007/auth/logout', new URLSearchParams({ userName }))
-  // }
+//   ipcRenderer.on('logout-before-close', async () => {
+//     console.log('收到主进程的注销请求')
 
-//   window.electron.receive('app-close', async () => {
-//     const userName = localStorage.getItem('userName')
-
-//     if (userName) {
-//       try {
-//         // 用 fetch 而不是 navigator.sendBeacon 以保证兼容性
-//         await fetch('http://localhost:8007/auth/logout', {
-//           method: 'POST',
-//           headers: {
-//             'Content-Type': 'application/x-www-form-urlencoded'
-//           },
-//           body: new URLSearchParams({ userName })
-//         })
-//       } catch (err) {
-//         console.error('注销请求失败:', err)
-//       }
-//     }
-//     ipcRenderer.send('force-close')
+//     // 请求后端登出接口
+//     // 通知主进程可以退出
+//     ipcRenderer.send('logout-finished')
 //   })
 // })
 
@@ -64,17 +50,17 @@ import { logoutTest } from './api/logout';
 // }
 
 // onMounted(() => {
-//   console.log('electron preload API:', window.electron)
-//   if (window.electron?.receive) {
-//     window.electron.receive('app-close', async () => {
-//       const userId = localStorage.getItem('userId');
-//       const userName = localStorage.getItem('username')
-//       logoutTest(userId, userName)
-//       window.electron.send('force-close')
-//     })
-//   } else {
-//     console.warn('window.electron.receive 不存在')
-//   }
+  // console.log('electron preload API:', window.electron)
+  // if (window.electron?.receive) {
+  //   window.electron.receive('app-close', async () => {
+  //     const userId = localStorage.getItem('userId');
+  //     const userName = localStorage.getItem('username')
+  //     logoutTest(userId, userName)
+  //     window.electron.send('force-close')
+  //   })
+  // } else {
+  //   console.warn('window.electron.receive 不存在')
+  // }
 // })
 
 </script>

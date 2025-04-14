@@ -8,6 +8,8 @@ import { setToken } from "../../http/token"
 // router钩子，返回路由器实例
 const router = useRouter()
 
+// const { ipcRenderer } = window.electron;
+
 const loginForm = reactive({
   userName: '',
   password: '',
@@ -52,15 +54,18 @@ const submitForm = (loginFormRef) => {
         let token = await loginTest(loginForm.userName, loginForm.password)
         setToken("token", token)
         localStorage.setItem('username', loginForm.userName)
-        
+
         // Query user information after successful login
         await queryUser(loginForm.userName);
-        
+
         ElMessage({
           message: '登录成功',
           type: 'success'
         })
         router.push('/home')
+      
+
+        // ipcRenderer.send('user-login', loginForm.userName, localStorage.getItem('userId'))
       } catch (error) {
         ElMessage({
           message: '登录失败',

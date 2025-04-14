@@ -9,87 +9,99 @@
         </div>
       </el-card>
     </el-col>
-      <!-- <el-col :span="24" class="input-container">
+    <!-- <el-col :span="24" class="input-container">
 
           <el-input style="width: 280px" placeholder="Type something" :prefix-icon="Search" />
       </el-col> -->
-      <!-- 输入框和按钮并列 -->
-      <el-col :span="24" class="input-and-buttons">
-          <div class="input-and-button">
-              <el-button type="primary" @click="handleAddUser">添加用户</el-button>
-              <el-input 
-                  v-model="searchInput" 
-                  style="width: 280px; margin-left: 20px;" 
-                  placeholder="用户ID/用户名搜索"
-                  :prefix-icon="Search"
-                  @input="handleSearch" 
-              />
-          </div>
-      </el-col>
-  </el-row>  
-  <el-col :span="24">
-      <el-table :data="tableData" style="width: 100%" :row-class-name="tableRowClassName" border
-          :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
-          <el-table-column prop="userId" label="用户ID" width="150" />
-          <el-table-column prop="userName" label="用户名称" width="150">
-              <template #default="scope">
-                  <span :class="{'online-user': scope.row.loginTime && scope.row.loginTime !== '-', 'offline-user': !scope.row.loginTime || scope.row.loginTime === '-'}">
-                      {{ scope.row.userName }}
-                  </span>
-              </template>
-          </el-table-column>
-          <el-table-column prop="roleId" label="用户角色">
-              <template #default="scope">
-                  {{ scope.row.roleId === 1 ? '管理员' : scope.row.roleId === 2 ? '发布者' : '普通用户' }}
-              </template>
-          </el-table-column>
-          <el-table-column label="申请时间" width="180">
-              <template #default="scope">
-                  {{ formatDate(scope.row.applicationTime) }}
-              </template>
-          </el-table-column>
-          <el-table-column label="登录时间" width="180">
-              <template #default="scope">
-                  {{ scope.row.loginTime || '-' }}
-              </template>
-          </el-table-column>
-          
-          <el-table-column label="在线时长" width="150">
-              <template #default="scope">
-                  {{ scope.row.onlineDuration || '-' }}
-              </template>
-          </el-table-column>
-          <el-table-column prop="userIntro" label="备注" />
-          <el-table-column label="操作">
-              <template #default="scope">
-                  <el-button size="small" type='success' @click="handleEdit(scope.$index, scope.row)">
-                      编辑
-                  </el-button>
-                  <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
-                      删除
-                  </el-button>
-              </template>
-          </el-table-column>
-      </el-table>
-  </el-col>
-      <!-- 分页 -->
-      <div style="margin-top: 30px;">
-          <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
-              @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[10, 15, 20]"
-              layout="total, sizes, prev, pager, next, jumper" :total="total">
-          </el-pagination>
+    <!-- 输入框和按钮并列 -->
+    <el-col :span="24" class="input-and-buttons">
+      <div class="input-and-button">
+        <el-button type="primary" @click="handleAddUser">添加用户</el-button>
+        <el-input v-model="searchInput" style="width: 280px; margin-left: 20px;" placeholder="用户ID/用户名搜索"
+          :prefix-icon="Search" @input="handleSearch" />
       </div>
-  
+    </el-col>
+  </el-row>
+  <el-col :span="24">
+    <el-table :data="tableData" style="width: 100%" :row-class-name="tableRowClassName" border
+      :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
+      <el-table-column prop="userId" label="用户ID" width="150" />
+      <el-table-column prop="userName" label="用户名称" width="150">
+        <template #default="scope">
+          <span
+            :class="{ 'online-user': scope.row.loginTime && scope.row.loginTime !== '-', 'offline-user': !scope.row.loginTime || scope.row.loginTime === '-' }">
+            {{ scope.row.userName }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="roleId" label="用户角色">
+        <template #default="scope">
+          {{ scope.row.roleId === 1 ? '管理员' : scope.row.roleId === 2 ? '发布者' : '普通用户' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="申请时间" width="180">
+        <template #default="scope">
+          {{ formatDate(scope.row.applicationTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="登录时间" width="180">
+        <template #default="scope">
+          {{ scope.row.loginTime || '-' }}
+        </template>
+      </el-table-column>
+
+      <el-table-column label="在线时长" width="150">
+        <template #default="scope">
+          {{ scope.row.onlineDuration || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="userIntro" label="备注" />
+      <el-table-column label="操作">
+        <template #default="scope">
+          <el-button size="small" type='success' @click="handleEdit(scope.$index, scope.row)">
+            编辑
+          </el-button>
+          <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </el-col>
+  <!-- 分页 -->
+  <div style="margin-top: 30px;">
+    <!-- <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
+      @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[5, 10, 15, 20]"
+      layout="total, sizes, prev, pager, next, jumper" :total="total">
+    </el-pagination> -->
+
+    <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="total"
+      :page-sizes="[5, 10, 15, 20]" layout="total, sizes, prev, pager, next, jumper" background
+      @size-change="handlePageSizeChange" @current-change="handleCurrentChange">
+      <!-- 替换总计文本 -->
+      <template #total>
+        共 {{ total }} 条
+      </template>
+
+      <!-- 替换每页显示文本 -->
+      <template #sizes>
+        <el-select v-model="pageSize" style="width: 100px;" @change="handlePageSizeChange">
+          <el-option v-for="size in [5, 10, 15, 20]" :key="size" :value="size" :label="`${size} 条/页`" />
+        </el-select>
+      </template>
+
+      <!-- 替换跳转页 -->
+      <template #jumper>
+        跳转到 <el-input v-model.number="currentPage" size="small" style="width: 50px;" /> 页
+      </template>
+    </el-pagination>
+  </div>
+
   <!-- 将对话框移到这里，避免在表格行内渲染 -->
-  <el-dialog 
-    :title="isEdit ? '编辑用户' : '添加用户'" 
-    v-model="addDialogVisible" 
-    width="500px"
-    :before-close="cancelAdd"
-    destroy-on-close
-  >
+  <el-dialog :title="isEdit ? '编辑用户' : '添加用户'" v-model="addDialogVisible" width="500px" :before-close="cancelAdd"
+    destroy-on-close>
     <el-form :model="form.value" label-width="120px">
-      
+
       <el-form-item label="用户名称" label-position="right">
         <el-input v-model="form.userName"></el-input>
       </el-form-item>
@@ -132,58 +144,58 @@ const onlineUserCount = ref(0) // 在线用户数
 
 //进入页面后，获取用户总数，获取第一页数据
 onMounted(async () => {
-    originalTableData.value = await queryAll()   //保存原始数据
-    tableData.value = originalTableData.value    //显示数据
-    total.value = tableData.value.length
-    fetchData()
-    fetchOnlineUsers()
+  originalTableData.value = await queryAll()   //保存原始数据
+  tableData.value = originalTableData.value    //显示数据
+  total.value = tableData.value.length
+  fetchData()
+  fetchOnlineUsers()
 })
 
 // 分页获取数据
 const fetchData = async () => {
-    try {
-        if (searchInput.value) {
-            const start = (currentPage.value - 1) * pageSize.value
-            const end = start + pageSize.value
-            tableData.value = originalTableData.value
-                .filter(item => 
-                    item.userId.toString().toLowerCase().includes(searchInput.value.toLowerCase()) || 
-                    item.userName.toLowerCase().includes(searchInput.value.toLowerCase())
-                )
-                .slice(start, end)
-        } else {
-            tableData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
-        }
-        
-        // 获取每个用户的登录时间并更新在线状态
-        for (const user of tableData.value) {
-            try {
-                const response = await LogInTimeByUsername(user.userName)
-                if (response ) {
-                    user.loginTime = response
-                    user.tableStatus = true
-                    // 如果用户在线，获取在线时长
-                    const durationResponse = await getOnlineDuration(user.userName)
-                    if (durationResponse ) {
-                        user.onlineDuration = durationResponse
-                    } else {
-                        user.onlineDuration = '-'
-                    }
-                } else {
-                    user.loginTime = '-'
-                    user.tableStatus = false
-                    user.onlineDuration = '-' // 用户不在线，直接设置为-
-                }
-            } catch (error) {
-                console.error('获取用户信息失败:', error)
-                user.loginTime = '-'
-                user.tableStatus = false
-                user.onlineDuration = '-'
-            }
-        }
-    } catch (error) {
-        console.error('Error fetching data: ', error)
+  try {
+    if (searchInput.value) {
+      const start = (currentPage.value - 1) * pageSize.value
+      const end = start + pageSize.value
+      tableData.value = originalTableData.value
+        .filter(item =>
+          item.userId.toString().toLowerCase().includes(searchInput.value.toLowerCase()) ||
+          item.userName.toLowerCase().includes(searchInput.value.toLowerCase())
+        )
+        .slice(start, end)
+    } else {
+      tableData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
     }
+
+    // 获取每个用户的登录时间并更新在线状态
+    for (const user of tableData.value) {
+      try {
+        const response = await LogInTimeByUsername(user.userName)
+        if (response) {
+          user.loginTime = response
+          user.tableStatus = true
+          // 如果用户在线，获取在线时长
+          const durationResponse = await getOnlineDuration(user.userName)
+          if (durationResponse) {
+            user.onlineDuration = durationResponse
+          } else {
+            user.onlineDuration = '-'
+          }
+        } else {
+          user.loginTime = '-'
+          user.tableStatus = false
+          user.onlineDuration = '-' // 用户不在线，直接设置为-
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+        user.loginTime = '-'
+        user.tableStatus = false
+        user.onlineDuration = '-'
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching data: ', error)
+  }
 }
 
 const handlePageSizeChange = (newSize) => {
@@ -192,6 +204,7 @@ const handlePageSizeChange = (newSize) => {
   fetchData()
 }
 
+// 分页跳转到指定页码
 const handleCurrentChange = (newPage) => {
   currentPage.value = newPage
   fetchData()
@@ -232,16 +245,16 @@ const tableRowClassName = ({ row }) => {
 // 格式化日期函数
 const formatDate = (dateString) => {
   if (!dateString) return '';
-  
+
   const date = new Date(dateString);
-  
+
   // 检查日期是否有效
   if (isNaN(date.getTime())) return dateString;
-  
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  
+
   return `${year}-${month}-${day}`;
 }
 
@@ -339,7 +352,7 @@ const handleAdd = async () => {
         tableStatus: true
       })
     }
-    console.log("response ",response)
+    console.log("response ", response)
     if (response) {
       ElMessage({
         type: 'success',
@@ -363,28 +376,28 @@ const cancelAdd = () => {
 
 // 添加搜索处理函数
 const handleSearch = () => {
-    if (!searchInput.value) {
-        // 如果搜索框为空，恢复原始数据
-        fetchData()
-        return
-    }
+  if (!searchInput.value) {
+    // 如果搜索框为空，恢复原始数据
+    fetchData()
+    return
+  }
 
-    const searchTerm = searchInput.value.toLowerCase()
-    const filteredData = originalTableData.value.filter(item => 
-        item.userId.toString().toLowerCase().includes(searchTerm) || 
-        item.userName.toLowerCase().includes(searchTerm)
-    )
-    
-    tableData.value = filteredData
-    total.value = filteredData.length
-    currentPage.value = 1  // 重置到第一页
+  const searchTerm = searchInput.value.toLowerCase()
+  const filteredData = originalTableData.value.filter(item =>
+    item.userId.toString().toLowerCase().includes(searchTerm) ||
+    item.userName.toLowerCase().includes(searchTerm)
+  )
+
+  tableData.value = filteredData
+  total.value = filteredData.length
+  currentPage.value = 1  // 重置到第一页
 }
 
 // 获取在线用户数
 const fetchOnlineUsers = async () => {
   try {
     const response = await getOnlineUserCount()
-    if (response ) {
+    if (response) {
       onlineUserCount.value = response
     }
   } catch (error) {
@@ -409,7 +422,8 @@ const fetchOnlineUsers = async () => {
 
 /* 添加全局间距样式 */
 .user-management {
-  position: relative; /* 添加相对定位以支持绝对定位的子元素 */
+  position: relative;
+  /* 添加相对定位以支持绝对定位的子元素 */
   margin: 20px 0;
   background-color: #f5f7fa;
   border-radius: 8px;
@@ -477,7 +491,8 @@ const fetchOnlineUsers = async () => {
 }
 
 /* 确保输入框可以正常工作 */
-.el-input, .el-textarea {
+.el-input,
+.el-textarea {
   width: 100%;
 }
 
@@ -527,7 +542,8 @@ const fetchOnlineUsers = async () => {
 .online-user {
   position: relative;
   margin-bottom: 20px;
-  color: #67c23a; /* 在线用户绿色 */
+  color: #67c23a;
+  /* 在线用户绿色 */
   font-weight: 500;
 }
 
@@ -566,6 +582,7 @@ const fetchOnlineUsers = async () => {
 }
 
 .offline-user {
-  color: #909399; /* 离线用户灰色 */
+  color: #909399;
+  /* 离线用户灰色 */
 }
 </style>

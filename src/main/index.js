@@ -3,26 +3,50 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { getElectronVersion } from './version'
-// import { initialize } from '@electron/remote/main'
+import { logoutTest } from '../renderer/api/logout'
 
-// initialize()
 
 // const { ipcMain, shell } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const { net } = require('electron')
 
-// 处理文件下载请求 
+
+
+let mainWindow = null // 🔁 改成 let，允许后续置为 null
+
+export function logoutFromServer(userId, userName) {
+  console.log('注销请求参数:', userId, userName)
+  return new Promise((resolve, reject) => {
+    const request = net.request({
+      method: 'POST',
+      url: `http://localhost:8007/auth/logout?userId=${userId}&userName=${userName}`,
+      headers: {
+        'Content-Type': 'application/json',    
+        // 'Authorization': "Bearer ${token}"
+      }
+    })
+    // console.log('注销请求参数token:', global.Token)
+    // console.log('注销请求:', request)
+    
+    request.on('response', (response) => {
+      console.log('✅ 注销接口响应状态码:', response.statusCode)
+      resolve(response.statusCode)
+    })
+
+    request.on('error', (err) => {
+      console.error('❌ 注销接口请求失败:', err)
+      reject(err)
+    })
+
+    request.end()
+  })
+}
 
 function createWindow() {
-  // server.listen(PORT, () => {
-  //     console.log(`Server is running on http://localhost:${PORT}`)
-  // })
-
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
-
     show: false,
     icon,
     webPreferences: {
@@ -35,27 +59,87 @@ function createWindow() {
     }
   })
 
-  // require('@electron/remote/main').enable(mainWindow.webContents)
-
-  // mainWindow.on('close', (e) => {
-  //   e.preventDefault()
-  //   mainWindow.webContents.send('app-close') // 通知渲染进程
-
-  //   // 1秒后强制退出（防止渲染进程没响应）
-  //   setTimeout(() => {
-  //     console.log('⚠️ 渲染进程无响应，强制退出')
-  //     app.quit()
-  //   }, 1000)
-  // })
-
-
-
-  //隐藏菜单栏
+  // 隐藏菜单栏
   mainWindow.setMenu(null)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+
+  // 拦截窗口关闭事件，先清除缓存再退出
+  // mainWindow.on('close', async (e) => {
+  //   e.preventDefault()
+
+  //   try {
+  //     const ses = mainWindow.webContents.session
+  //     await ses.clearStorageData()
+  //     console.log('✅ 清除本地数据成功，准备退出')
+  //   } catch (err) {
+  //     console.error('❌ 清除本地数据失败:', err)
+  //   }
+
+  //   mainWindow.destroy() // 彻底销毁窗口
+  //   mainWindow = null
+  //   app.quit() // 退出整个程序
+  // })
+
+  ipcMain.on('user-login', (e, userName, userId) => {
+    global.userName = userName
+    global.userId = userId
+    // global.Token = Token
+    console.log('主进程已接收到用户登录信息:', userName, userId)
+  })
+
+
+  mainWindow.on('close', async (e) => {
+    console.log('userID', global.userId)
+    e.preventDefault()
+    try {
+      console.log('用户名：...', global.userName)
+
+      if (global.userId && global.userName) {
+        console.log('注销接口将被调用...')
+        await logoutFromServer(global.userId, global.userName)
+      }
+      await mainWindow.webContents.session.clearStorageData()
+      console.log('✅ 本地数据已清除')
+    } catch (err) {
+      console.error('⚠️ 关闭前处理失败:', err)
+    }
+    mainWindow.destroy()
+    app.quit()
+  })
+
+  // mainWindow.on('close', async (e) => {
+  //   e.preventDefault()
+  //   try {
+  //     // const logoutUrl = 'http://your-api/logout'
+
+  //     // 使用 Electron 的 net 模块发送注销请求
+  //     const { net } = require('electron')
+
+  //     await logoutTest(global.userId, global.userName)
+
+  //     // await new Promise((resolve, reject) => {
+  //     //   const request = net.request({
+  //     //     method: 'POST',
+  //     //     url: logoutUrl,
+  //     //     headers: {
+  //     //       'Content-Type': 'application/json'
+  //     //     }
+  //     //   })
+
+  //     // 清除本地数据
+  //     await mainWindow.webContents.session.clearStorageData()
+  //     console.log('✅ 本地数据已清除')
+
+  //   } catch (err) {
+  //     console.error('⚠️ 关闭前处理失败:', err)
+  //   }
+  //   // 最终退出
+  //   mainWindow.destroy()
+  //   app.quit()
+  // })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -71,14 +155,6 @@ function createWindow() {
   globalShortcut.register('CommandOrControl+Shift+i', function () {
     mainWindow.webContents.openDevTools()
   })
-
-
-  // 窗口关闭时用户注销
-  // mainWindow.on('close', (event) => {
-  //   event.preventDefault()
-  //   // 向渲染进程发信号表示应用程序正在关闭
-  //   mainWindow.webContents.send('app-close')
-  // })
 
   return mainWindow
 }
@@ -110,7 +186,9 @@ if (!gotTheLock) {
   })
 
   app.on('window-all-closed', (e) => {
+    console.log('所有窗口已关闭，准备退出应用')
     if (process.platform !== 'darwin') {
+
       app.quit()
     }
   })
@@ -211,6 +289,9 @@ ipcMain.handle('select-directory', async () => {
   })
   return result
 })
+
+
+
 
 // ipcMain.on('force-close', () => {
 //   if(myWindow) {
