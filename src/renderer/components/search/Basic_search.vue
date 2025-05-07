@@ -240,6 +240,7 @@ import { fuzzySearchAchievements, preciseSearchAchievements } from '../../api/se
 import { submitDownloadForm, downloadAchievements } from '../../api/download';
 import emitter from '../../utils/eventBus';
 import { useRoute, useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
 
 const route = useRoute();
 const router = useRouter();
@@ -419,14 +420,18 @@ const handleBatchDownload = async () => {
     showDownloadDialog.value = true;
 };
 
-// 浏览下载路径
+// 修改 browseDownloadPath 函数
 const browseDownloadPath = async () => {
     try {
-        // 导入Electron的dialog模块
-        const { dialog } = require('@electron/remote');
+        // 检查是否有 electron 对象
+        if (!window.electron) {
+            console.error('Electron API 不可用');
+            ElMessage.warning('在此环境中无法选择文件夹，请手动输入路径');
+            return;
+        }
         
-        // 打开文件夹选择对话框
-        const result = await dialog.showOpenDialog({
+        // 使用预先暴露的 API
+        const result = await window.electron.showOpenDialog({
             properties: ['openDirectory'],
             title: '选择下载文件夹',
             defaultPath: downloadPath.value || 'C:/data/download/'
@@ -442,7 +447,7 @@ const browseDownloadPath = async () => {
         }
     } catch (error) {
         console.error('打开文件夹选择对话框时出错:', error);
-        alert('无法打开文件夹选择对话框，请稍后重试');
+        ElMessage.warning('无法打开文件夹选择对话框，请手动输入路径');
     }
 };
 
@@ -459,9 +464,9 @@ const confirmDownload = async () => {
         showDownloadDialog.value = false;
         console.log(`确认下载到路径: ${downloadPath.value}`);
         
-        // 默认用户ID为1
-        const userId = 1;
-        
+      
+        const userIdStr = localStorage.getItem('userId');
+        const userId = userIdStr ? parseInt(userIdStr, 10) : null; 
         if (currentDownloadType.value === 'single') {
             // 单个文件下载
             const achievementIds = [downloadItems.value[0].id];

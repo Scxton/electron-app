@@ -96,3 +96,15 @@ export function queryAllDownloadRecords() {
         mock: false
     })
 }
+
+//根据成果ID查询单条数据
+export function queryById(id) {
+    return request({
+        method: 'get',
+        url: '/achievementTable/queryById',
+        params: {
+            "id": id
+        },
+        mock: false
+    })
+}
