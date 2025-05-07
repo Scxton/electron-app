@@ -12,15 +12,15 @@ const env = process.env.NODE_ENV || 'production'
 
 const EnvConfig = {
     development: {
-        baseApi: 'http://localhost:8007',
+        baseApi: 'http://localhost:8082',
         mockApi: ''
     },
     test: {
-        baseApi: 'http://localhost:8007',
+        baseApi: 'http://localhost:8082',
         mockApi: ''
     },
     production: {
-        baseApi: 'http://localhost:8007', 
+        baseApi: 'http://localhost:8082', 
         mockApi: ''
     }
 }

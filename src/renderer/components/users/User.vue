@@ -35,7 +35,7 @@
         </div>
 
         <!-- 知识产权表格 -->
-        <el-table :data="filteredTableData" style="width: 100%;" :row-class-name="tableRowClassName">
+        <el-table :data="paginatedTableData" style="width: 100%;" :row-class-name="tableRowClassName">
             <el-table-column prop="intellectualNo" label="产权编号" width="150" />
             <el-table-column prop="intellectualName" label="产权名称" width="200" />
             <el-table-column prop="projectNo" label="所属项目编号" width="150" />
@@ -79,31 +79,31 @@
         </el-table>
 
         <!-- 分页 -->
-        <!-- <div style="margin-top: 30px;">
-            <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
+        <div style="margin-top: 30px;">
+            <!-- <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" background
                 @size-change="handlePageSizeChange" @current-change="handleCurrentChange" :page-sizes="[10, 15, 20]"
                 layout="total, sizes, prev, pager, next, jumper" :total="total">
-            </el-pagination>
-        </div> -->
+            </el-pagination> -->
 
-        <div class="pagination-controls">
-            <div class="page-size-select">
-                <label>每页显示:</label>
-                <select v-model="pageSize">
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="15">15</option>
-                    <option value="20">20</option>
-                </select>
-            </div>
-            <div class="page-buttons">
-                <button class="page-btn" :disabled="currentPage === 1" @click="prevPage">
-                    上一页
-                </button>
-                <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
-                <button class="page-btn" :disabled="currentPage === totalPages" @click="nextPage">
-                    下一页
-                </button>
+            <div class="pagination-controls">
+                <div class="page-size-select">
+                    <label>每页显示:</label>
+                    <select v-model="pageSize" @change="changePageSize">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
+                <div class="page-buttons">
+                    <button class="page-btn" :disabled="currentPage === 1" @click="prevPage">
+                        上一页
+                    </button>
+                    <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+                    <button class="page-btn" :disabled="currentPage === totalPages" @click="nextPage">
+                        下一页
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -190,7 +190,8 @@ import { getAllCompanies } from '../../api/companyInfo'
 const tableData = ref([])   //产权信息列表
 const total = ref(0)   //产权总数
 const currentPage = ref(1)  // 当前页码
-const pageSize = ref(10)  // 每页数量（可通过下拉框选择）  // 总页数
+const pageSize = ref(10)  // 每页数量（可通过下拉框选择）
+
 
 // 新增图表相关代码
 const chartRef = ref(null)
@@ -337,7 +338,6 @@ const fetchData = async () => {
         const start = (currentPage.value - 1) * pageSize.value
         const end = start + pageSize.value
         tableData.value = filteredData.slice(start, end)
-     
     } catch (error) {
         console.error('Error fetching data: ', error)
     }
@@ -354,35 +354,34 @@ const fetchData = async () => {
 //     fetchData()
 // }
 
-// const updatePagination = () => {
-//       const start = (currentPage.value - 1) * pageSize.value
-//       const end = start + pageSize.value
-//       paginatedAchievements.value = tableData.value.slice(start, end)
-//       total.value = Math.ceil(tableData.value.length / pageSize.value)
-//     }
-
-const totalPages = computed(() => {
-    return Math.ceil(tableData.value.length / pageSize.value) || 1;
+// 新增以下 computed 用于分页：
+const filteredData = computed(() => {
+    let data = [...rawTableData.value];
+    if (currentStatusFilter.value === 'normal') data = data.filter(item => item.renewalStatus);
+    if (currentStatusFilter.value === 'expired') data = data.filter(item => !item.renewalStatus);
+    if (searchText.value) data = data.filter(item => item.intellectualNo.includes(searchText.value));
+    return data;
 });
 
-// const changePageSize = () => {
-//     currentPage.value = 1
-//     updatePagination()
-// }
+const paginatedTableData = computed(() => {
+    const start = (currentPage.value - 1) * pageSize.value;
+    return filteredData.value.slice(start, start + pageSize.value);
+});
 
-const nextPage = () => {
-    if (currentPage.value < totalPages.value) {
-        currentPage.value++
-        // updatePagination()
-    }
-}
+const totalPages = computed(() => Math.ceil(filteredData.value.length / pageSize.value) || 1);
 
-const prevPage = () => {
-    if (currentPage.value > 1) {
-        currentPage.value--
-        // updatePagination()
-    }
-}
+const changePageSize = () => currentPage.value = 1;
+const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
+const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
+
+// 将原来的 tableData 改名为 rawTableData 来区分原始数据和过滤后的数据：
+const rawTableData = ref([]);
+onMounted(async () => {
+    rawTableData.value = await queryAll();
+    fetchOrganizations();
+    initChart();
+});
+
 
 const initTableData = async () => {
     tableData.value = await queryAll()
@@ -838,7 +837,6 @@ const showExpiredProperties = () => {
     color: #909399;
 }
 
-
 .pagination-controls {
     display: flex;
     justify-content: space-between;
@@ -891,5 +889,3 @@ const showExpiredProperties = () => {
     color: #606266;
 }
 </style>
-
-//增删改查完成

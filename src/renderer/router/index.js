@@ -20,6 +20,7 @@ const routes = [
     path: '/home',
     name: '系统信息',
     component: () => import('@renderer/views/home/Home.vue'),
+    redirect: '/home/dash',
     iconClass: 'fa fa-users',
     children: [{
         path: '/home/dash',
