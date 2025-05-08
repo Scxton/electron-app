@@ -115,3 +115,15 @@ export function LogInTimeByUsername(userName) {
         mock: false
     })
 }
+
+// 通过ID查询用户
+export function queryById(id) {
+    return request({
+        method: 'get',
+        url: '/userRolePermissions/queryById',
+        params: {
+            id: id
+        },
+        mock: false
+    })
+}

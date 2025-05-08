@@ -18,6 +18,17 @@
           </select>
           <i class="fas fa-chevron-down select-arrow"></i>
         </div>
+        <label>成果类型: </label>
+        <div class="type-select-wrapper">
+          <select v-model="selectedCategory" @change="filterAchievements" class="type-select">
+            <option value="all">全部</option>
+            <option value="paper">论文</option>
+            <option value="patent">专利</option>
+            <option value="project">项目</option>
+            <option value="report">报告</option>
+          </select>
+          <i class="fas fa-chevron-down select-arrow"></i>
+        </div>
         <div class="statistics">
           <span class="stat-item">成果总数: {{ totalCount }}</span>
           <span class="stat-item">待审核: {{ pendingCount }}</span>
@@ -193,6 +204,7 @@ export default {
     const achievements = ref([])
     const allAchievements = ref([]) // Store all achievements
     const selectedStatus = ref('all')
+    const selectedCategory = ref('all')
     const router = useRouter()
     const viewMode = ref('list') // Remove 'card' option
     const totalCount = ref(0)
@@ -226,7 +238,7 @@ export default {
 
     const updateStatistics = (achievements) => {
       totalCount.value = achievements.length
-      pendingCount.value = achievements.filter(a => a.auditFlag == 0).length
+      pendingCount.value = achievements.filter(a => a.auditFlag == 0 || a.auditFlag == 2).length
       publishedCount.value = achievements.filter(a => a.auditFlag == 1).length
     }
 
@@ -256,8 +268,23 @@ export default {
 
       // Filter by status if not 'all'
       if (selectedStatus.value !== 'all') {
+        if (selectedStatus.value === '0') {
+          // If selected status is pending (0), include both 0 and 2
+          filtered = filtered.filter(
+            achievement => achievement.auditFlag == 0 || achievement.auditFlag == 2
+          );
+        } else {
+          // Otherwise, filter by the exact status value
+          filtered = filtered.filter(
+            achievement => achievement.auditFlag == selectedStatus.value
+          );
+        }
+      }
+
+      // Filter by category if not 'all'
+      if (selectedCategory.value !== 'all') {
         filtered = filtered.filter(
-          achievement => achievement.auditFlag == selectedStatus.value
+          achievement => achievement.achievementCategory === selectedCategory.value
         );
       }
 
@@ -286,17 +313,19 @@ export default {
     const getStatus = (auditFlag) => {
       switch (auditFlag) {
         case 0:
+        case 2:
           return '待审核';
         case 1:
           return '已发布';
-        case 2:
-          return '待审核';
+        default:
+          return '未知状态';
       }
     }
 
     const getStatusClass = (auditFlag) => {
       switch (auditFlag) {
         case 0:
+        case 2:
           return 'pending';
         case 1:
           return 'published';
@@ -785,6 +814,7 @@ export default {
     return {
       achievements,
       selectedStatus,
+      selectedCategory,
       formatDate,
       translateCategory,
       getStatus,
@@ -1384,5 +1414,39 @@ export default {
 .achievement-name a:hover {
   color: #66b1ff;
   text-decoration: underline;
+}
+
+.type-select-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 200px;
+  margin-right: 15px;
+}
+
+.type-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  padding: 10px 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fff;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.type-select:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.type-select:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
 }
 </style>

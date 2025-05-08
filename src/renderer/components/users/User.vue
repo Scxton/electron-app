@@ -39,7 +39,24 @@
             <el-table-column prop="intellectualNo" label="产权编号" width="150" />
             <el-table-column prop="intellectualName" label="产权名称" width="200" />
             <el-table-column prop="projectNo" label="所属项目编号" width="150" />
-            <el-table-column prop="intellectualPropertyType" label="产权类型" width="150" />
+            <el-table-column prop="intellectualPropertyType" label="产权类型" width="150">
+                <template #header>
+                    <el-dropdown @command="handleTypeFilter">
+                        <span class="el-dropdown-link">
+                            产权类型<el-icon class="el-icon--right"><arrow-down /></el-icon>
+                        </span>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item command="all">全部</el-dropdown-item>
+                                <el-dropdown-item command="发明专利">发明专利</el-dropdown-item>
+                                <el-dropdown-item command="实用新型专利">实用新型专利</el-dropdown-item>
+                                <el-dropdown-item command="外观设计专利">外观设计专利</el-dropdown-item>
+                                <el-dropdown-item command="其他">其他</el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
+                </template>
+            </el-table-column>
             <el-table-column prop="organizationName" label="所属单位" width="150" />
             <el-table-column prop="renewalStatus" label="产权状态" width="150">
                 <template #header>
@@ -316,8 +333,11 @@ onMounted(async () => {
     fetchData()
 })
 
-// 添加状态筛选相关的变量和方法
+// 添加状态筛选相关的变量
 const currentStatusFilter = ref('all')
+
+// 添加产权类型筛选相关的变量
+const currentTypeFilter = ref('all')
 
 // 修改 fetchData 方法
 const fetchData = async () => {
@@ -329,6 +349,11 @@ const fetchData = async () => {
             filteredData = allData.filter(item => item.renewalStatus === true)
         } else if (currentStatusFilter.value === 'expired') {
             filteredData = allData.filter(item => item.renewalStatus === false)
+        }
+        
+        // 根据产权类型筛选
+        if (currentTypeFilter.value !== 'all') {
+            filteredData = filteredData.filter(item => item.intellectualPropertyType === currentTypeFilter.value)
         }
 
         // 更新总数
@@ -357,8 +382,12 @@ const fetchData = async () => {
 // 新增以下 computed 用于分页：
 const filteredData = computed(() => {
     let data = [...rawTableData.value];
+    // 状态筛选
     if (currentStatusFilter.value === 'normal') data = data.filter(item => item.renewalStatus);
     if (currentStatusFilter.value === 'expired') data = data.filter(item => !item.renewalStatus);
+    // 产权类型筛选
+    if (currentTypeFilter.value !== 'all') data = data.filter(item => item.intellectualPropertyType === currentTypeFilter.value);
+    // 搜索筛选
     if (searchText.value) data = data.filter(item => item.intellectualNo.includes(searchText.value));
     return data;
 });
@@ -391,14 +420,6 @@ const initTableData = async () => {
 
 // 搜索文本
 const searchText = ref('')
-
-// 过滤表格数据
-const filteredTableData = computed(() => {
-    if (!searchText.value) return tableData.value
-    return tableData.value.filter(item =>
-        item.intellectualNo.includes(searchText.value)
-    )
-})
 
 // 搜索过滤方法
 const filterTable = () => {
@@ -588,6 +609,13 @@ const confirmRenew = async () => {
 // 添加状态筛选处理方法
 const handleStatusFilter = (command) => {
     currentStatusFilter.value = command
+    currentPage.value = 1 // 重置页码
+    fetchData()
+}
+
+// 添加产权类型筛选处理方法
+const handleTypeFilter = (command) => {
+    currentTypeFilter.value = command
     currentPage.value = 1 // 重置页码
     fetchData()
 }

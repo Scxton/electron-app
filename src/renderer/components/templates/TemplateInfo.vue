@@ -18,7 +18,7 @@
                 <thead>
                     <tr>
                         <th>模板ID</th>
-                        <th>成果名称</th>
+                        <th>模板名称</th>
                         <th>上传时间</th>
                         <th>更新时间</th>
                         <th>版本号</th>
@@ -158,7 +158,7 @@
                     <span>{{ selectedTemplate.templateId }}</span>
                 </div>
                 <div class="detail-item">
-                    <label>成果名称：</label>
+                    <label>模板名称：</label>
                     <span>{{ selectedTemplate.templateName }}</span>
                 </div>
                 <div class="detail-item">
@@ -218,11 +218,13 @@ const templateTypeFilter = ref('')
 const detailsDialogVisible = ref(false)
 const selectedTemplate = ref(null)
 
-// 添加模板类型映射
 const templateTypeMap = {
     'paper': '论文',
-    'patent': '专利',
-    'other': '其他'
+    '论文': '论文',
+    'patent': '专利', 
+    '专利': '专利',
+    'other': '其他',
+    '其他': '其他'
 }
 
 const fetchTemplates = async () => {
@@ -377,36 +379,29 @@ const submitAudit = async () => {
     }
 }
 
-// 修改 filteredTemplates 计算属性
+// 修改 filteredTemplates 计算属性// 修改 filteredTemplates 计算属性
 const filteredTemplates = computed(() => {
-    let filtered = templates.value
+    let filtered = templates.value.filter(template => template.reviewStatus === true)
     
-    // 添加搜索过滤
     if (searchQuery.value.trim()) {
         const query = searchQuery.value.toLowerCase().trim()
         filtered = filtered.filter(template => 
-            template.templateName?.toLowerCase().includes(query) ||    // 搜索模板名称
-            template.userId?.toString().toLowerCase().includes(query) || // 搜索用户ID
-            template.templateId?.toString().toLowerCase().includes(query) // 搜索模板ID
+            template.templateName?.toLowerCase().includes(query) ||
+            template.templateId?.toString().toLowerCase().includes(query)
         )
     }
     
-    // 添加模板类型筛选
     if (templateTypeFilter.value) {
-        filtered = filtered.filter(template => 
-            template.templateType?.toLowerCase() === templateTypeFilter.value
-        )
-    }
-    
-    if (reviewStatusFilter.value) {
-        filtered = filtered.filter(template => 
-            template.reviewStatus === (reviewStatusFilter.value === 'true')
-        )
+        filtered = filtered.filter(template => {
+            const type = template.templateType?.toLowerCase()
+            return type === templateTypeFilter.value || 
+                   templateTypeMap[type] === templateTypeMap[templateTypeFilter.value]
+        })
     }
     
     return filtered.map(template => ({
         ...template,
-        templateType: templateTypeMap[template.templateType?.toLowerCase()] || '其他'
+        templateType: templateTypeMap[template.templateType] || '其他'
     }))
 })
 

@@ -27,7 +27,7 @@ export function submitDownloadForm(achievementIds, userId) {
 }
 
 // 下载单个或多个成果文件
-export function downloadAchievements(fileNames, achievementIds = []) {
+export function downloadAchievements(fileNames, achievementIds = [], downloadPath = '') {
   console.log('【api】开始下载成果文件，文件名：', fileNames);
   
   // 如果fileNames是数组，转换为逗号分隔的字符串
@@ -43,7 +43,8 @@ export function downloadAchievements(fileNames, achievementIds = []) {
     url: 'http://localhost:8082/achievement/download',
     method: 'post',
     params: {
-      fileNames: fileNamesStr
+      fileNames: fileNamesStr,
+      downloadPath: downloadPath // 添加下载路径参数，后端可以用来保存文件
     },
     responseType: 'blob', // 指定响应类型为blob
     headers: {
@@ -54,9 +55,7 @@ export function downloadAchievements(fileNames, achievementIds = []) {
     timeout: 60000 // 增加超时时间到60秒
   }).then(response => {
     // 后端直接返回文件内容，这里只需检查响应是否为blob类型
-    fileDownload(response.data, fileNames);
-    console.log('【API】Audit file download successful:', fileNames);
-    console.log('[api]', response.data);
+    console.log('【API】成功获取文件内容:', fileNames);
     
     // 更新下载任务状态为成功
     updateDownloadTaskStatus(fileNames, true);

@@ -19,6 +19,13 @@
         <el-button type="primary" @click="handleAddUser">添加用户</el-button>
         <el-input v-model="searchInput" style="width: 280px; margin-left: 20px;" placeholder="用户ID/用户名搜索"
           :prefix-icon="Search" @input="handleSearch" />
+        <!-- 添加角色过滤下拉框 -->
+        <el-select v-model="roleFilter" placeholder="按角色筛选" style="width: 160px; margin-left: 20px;" @change="handleRoleFilter">
+          <el-option label="全部用户" :value="0" />
+          <el-option label="管理员" :value="1" />
+          <el-option label="发布者" :value="2" />
+          <el-option label="普通用户" :value="3" />
+        </el-select>
       </div>
     </el-col>
   </el-row>
@@ -141,6 +148,7 @@ const pageSize = ref(10)  // 每页数量（可通过下拉框选择）
 const searchInput = ref('')  // 新增搜索输入框的响应式变量
 const originalTableData = ref([])  // 保存原始数据
 const onlineUserCount = ref(0) // 在线用户数
+const roleFilter = ref(0) // 角色过滤值，0表示全部用户
 
 //进入页面后，获取用户总数，获取第一页数据
 onMounted(async () => {
@@ -154,18 +162,26 @@ onMounted(async () => {
 // 分页获取数据
 const fetchData = async () => {
   try {
+    let filteredData = originalTableData.value
+
+    // 先按搜索关键字筛选
     if (searchInput.value) {
-      const start = (currentPage.value - 1) * pageSize.value
-      const end = start + pageSize.value
-      tableData.value = originalTableData.value
-        .filter(item =>
-          item.userId.toString().toLowerCase().includes(searchInput.value.toLowerCase()) ||
-          item.userName.toLowerCase().includes(searchInput.value.toLowerCase())
-        )
-        .slice(start, end)
-    } else {
-      tableData.value = await queryAllWithPagination(currentPage.value, pageSize.value)
+      filteredData = filteredData.filter(item =>
+        item.userId.toString().toLowerCase().includes(searchInput.value.toLowerCase()) ||
+        item.userName.toLowerCase().includes(searchInput.value.toLowerCase())
+      )
     }
+    
+    // 再按角色筛选
+    if (roleFilter.value !== 0) {
+      filteredData = filteredData.filter(item => item.roleId === roleFilter.value)
+    }
+    
+    // 计算总数和进行分页
+    total.value = filteredData.length
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    tableData.value = filteredData.slice(start, end)
 
     // 获取每个用户的登录时间并更新在线状态
     for (const user of tableData.value) {
@@ -374,23 +390,10 @@ const cancelAdd = () => {
   addDialogVisible.value = false
 }
 
-// 添加搜索处理函数
+// 修改原有的搜索处理函数
 const handleSearch = () => {
-  if (!searchInput.value) {
-    // 如果搜索框为空，恢复原始数据
-    fetchData()
-    return
-  }
-
-  const searchTerm = searchInput.value.toLowerCase()
-  const filteredData = originalTableData.value.filter(item =>
-    item.userId.toString().toLowerCase().includes(searchTerm) ||
-    item.userName.toLowerCase().includes(searchTerm)
-  )
-
-  tableData.value = filteredData
-  total.value = filteredData.length
   currentPage.value = 1  // 重置到第一页
+  fetchData()
 }
 
 // 获取在线用户数
@@ -403,6 +406,12 @@ const fetchOnlineUsers = async () => {
   } catch (error) {
     console.error('获取在线用户数失败:', error)
   }
+}
+
+// 添加角色过滤处理函数
+const handleRoleFilter = () => {
+  currentPage.value = 1  // 重置到第一页
+  fetchData()
 }
 
 </script>

@@ -14,6 +14,21 @@
             </template>
           </el-input>
         </div>
+        <div class="type-filter">
+          <el-select
+            v-model="selectedLogType"
+            placeholder="按操作类型筛选"
+            clearable
+            @change="filterLogs"
+          >
+            <el-option
+              v-for="type in logTypes"
+              :key="type"
+              :label="type"
+              :value="type"
+            />
+          </el-select>
+        </div>
         <div class="statistics">
           <span class="stat-item">日志总数: {{ totalCount }}</span>
         </div>
@@ -194,6 +209,16 @@ export default {
       logTime: ''
     })
     const chart = ref(null)
+    const selectedLogType = ref('')
+    const logTypes = ref([
+      '成果操作',
+      '单位操作',
+      '模板操作',
+      '投诉操作',
+      '用户操作',
+      '产权操作',
+      '交互操作'
+    ])
 
     const fetchLogs = async () => {
       try {
@@ -215,6 +240,25 @@ export default {
         filtered = filtered.filter(log => 
           log.logIntro.toLowerCase().includes(searchLower)
         )
+      }
+      
+      if (selectedLogType.value) {
+        const typeKeywords = {
+          '成果操作': '成果',
+          '单位操作': '单位',
+          '模板操作': '模板',
+          '投诉操作': '投诉',
+          '用户操作': '用户',
+          '产权操作': '产权',
+          '交互操作': '评价'
+        };
+        
+        const keyword = typeKeywords[selectedLogType.value];
+        if (keyword) {
+          filtered = filtered.filter(log => 
+            log.logIntro.includes(keyword)
+          );
+        }
       }
       
       logs.value = filtered;
@@ -534,7 +578,9 @@ export default {
       showEditLogDialog,
       handleEditLog,
       chart,
-      exportLogs
+      exportLogs,
+      selectedLogType,
+      logTypes
     }
   }
 }
@@ -563,6 +609,11 @@ export default {
 
 .search-box {
   width: 300px;
+  margin-right: 20px;
+}
+
+.type-filter {
+  width: 200px;
   margin-right: 20px;
 }
 
