@@ -16,7 +16,15 @@
             <div class="info-item">
               <i class="el-icon-collection-tag"></i>
               <span class="label">类别：</span>
-              <span>{{ achievement.category === 'patent' ? '专利' : achievement.category === 'paper' ? '论文' : achievement.category }}</span>
+              <span>{{
+                achievement.category === 'patent' ? '专利' : 
+                achievement.category === 'paper' ? '论文' : 
+                achievement.category === 'technology' ? '技术类成果' :
+                achievement.category === 'system' ? '系统类成果' :
+                achievement.category === 'software' ? '软件类成果' :
+                achievement.category === 'hardware' ? '硬件类成果' :
+                achievement.category
+              }}</span>
             </div>
             <div class="info-item">
               <i class="el-icon-office-building"></i>
@@ -804,7 +812,53 @@ const downloadAchievement = async () => {
       // 步骤2：执行文件下载
       
       console.log('开始下载文件:', submitResult)
-      await downloadAchievements(submitResult)
+      const response = await downloadAchievements(submitResult)
+      console.log('下载API响应类型:', response);
+        
+        // 创建Blob对象
+        const blob = new Blob([response], { type: response.type || 'application/octet-stream' });
+        
+        // 设置文件名 - 单个文件使用原文件名，多个文件使用时间戳命名的zip
+        let fileName;
+        if (submitResult.length === 1) {
+            fileName = submitResult[0];
+        } else {
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/[:.]/g, '-').substring(0, 19);
+            fileName = `批量下载_${timestamp}.zip`;
+        }
+        
+        // 使用更隐蔽的方式下载文件
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none'; // 隐藏链接元素
+        document.body.appendChild(link);
+        
+        // 模拟点击但不触发可见的系统对话框
+        link.click();
+        
+        // 延迟一段时间后移除链接（确保下载开始）
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(link);
+        }, 100);
+        
+      
+
+
+
+
+
+
+
+
+
+
+
+
+      
       ElMessage.success('下载成功')
     } else {
       ElMessage.error('获取文件名失败，无法下载')
@@ -1022,7 +1076,39 @@ const downloadVersion = async (version) => {
     console.log('Downloading version file:', fileName)
     
     // 调用下载API
-    await downloadAchievements(fileName)
+    const response = await downloadAchievements(fileName)
+    console.log('下载API响应类型:', response);
+        
+        // 创建Blob对象
+        const blob = new Blob([response], { type: response.type || 'application/octet-stream' });
+        
+        // 设置文件名 - 单个文件使用原文件名，多个文件使用时间戳命名的zip
+        // let fileName;
+        // if (submitResult.length === 1) {
+        //     fileName = submitResult[0];
+        // } else {
+        //     const now = new Date();
+        //     const timestamp = now.toISOString().replace(/[:.]/g, '-').substring(0, 19);
+        //     fileName = `批量下载_${timestamp}.zip`;
+        // }
+        
+        // 使用更隐蔽的方式下载文件
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none'; // 隐藏链接元素
+        document.body.appendChild(link);
+        
+        // 模拟点击但不触发可见的系统对话框
+        link.click();
+        
+        // 延迟一段时间后移除链接（确保下载开始）
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(link);
+        }, 100);
+        
     
     // 显示成功消息
     ElMessage({

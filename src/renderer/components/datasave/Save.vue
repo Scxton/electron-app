@@ -9,6 +9,15 @@
         </div>
       </el-card>
     </el-col>
+    <!-- 添加待审核用户卡片 -->
+    <el-col :span="24" class="pending-approval">
+      <el-card class="pending-approval-card" @click="showApprovalUsers">
+        <div class="card-content">
+          <span class="card-title">待审核用户</span>
+          <span class="card-count">{{ pendingApprovalCount }} 人</span>
+        </div>
+      </el-card>
+    </el-col>
     <!-- <el-col :span="24" class="input-container">
 
           <el-input style="width: 280px" placeholder="Type something" :prefix-icon="Search" />
@@ -131,6 +140,36 @@
       </el-form-item>
     </el-form>
   </el-dialog>
+
+  <!-- 添加审核用户对话框 -->
+  <el-dialog title="待审核用户" v-model="approvalDialogVisible" width="800px">
+    <el-table :data="approvalUsers" style="width: 100%" border
+      :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
+      <el-table-column prop="userId" label="用户ID" width="80" />
+      <el-table-column prop="userName" label="用户名称" width="120" />
+      <el-table-column prop="roleId" label="申请角色">
+        <template #default="scope">
+          {{ scope.row.roleId === 1 ? '管理员' : scope.row.roleId === 2 ? '发布者' : '普通用户' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="申请时间" width="180">
+        <template #default="scope">
+          {{ formatDate(scope.row.applicationTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="userIntro" label="备注" />
+      <el-table-column label="操作" width="200">
+        <template #default="scope">
+          <el-button size="small" type="success" @click="handleApprove(scope.row)">
+            批准
+          </el-button>
+          <el-button size="small" type="danger" @click="handleReject(scope.row)">
+            拒绝
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -138,7 +177,7 @@ import { Search } from '@element-plus/icons-vue'
 import { ref, onMounted, reactive, nextTick } from 'vue'
 import { queryAll, queryAllWithPagination, addUser, editUser, deleteUser, getOnlineDuration, LogInTimeByUsername } from "../../api/getUser"
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getOnlineUserCount } from "../../api/user" // 导入API
+import { getOnlineUserCount, queryApproval, approveUser, rejectUser } from "../../api/user" // 导入API
 import { addLog } from "../../api/log"
 
 const tableData = ref([])   //用户信息列表
@@ -150,6 +189,11 @@ const originalTableData = ref([])  // 保存原始数据
 const onlineUserCount = ref(0) // 在线用户数
 const roleFilter = ref(0) // 角色过滤值，0表示全部用户
 
+// 添加待审核用户相关变量
+const approvalDialogVisible = ref(false)
+const approvalUsers = ref([])
+const pendingApprovalCount = ref(0)
+
 //进入页面后，获取用户总数，获取第一页数据
 onMounted(async () => {
   originalTableData.value = await queryAll()   //保存原始数据
@@ -157,6 +201,7 @@ onMounted(async () => {
   total.value = tableData.value.length
   fetchData()
   fetchOnlineUsers()
+  fetchPendingApprovalCount() // 加载待审核用户数量
 })
 
 // 分页获取数据
@@ -414,6 +459,112 @@ const handleRoleFilter = () => {
   fetchData()
 }
 
+// 获取待审核用户数量
+const fetchPendingApprovalCount = async () => {
+  try {
+    const response = await queryApproval()
+    if (response) {
+      approvalUsers.value = response
+      pendingApprovalCount.value = response.length
+    }
+  } catch (error) {
+    console.error('获取待审核用户数量失败:', error)
+  }
+}
+
+// 显示待审核用户对话框
+const showApprovalUsers = async () => {
+  try {
+    const response = await queryApproval()
+    if (response) {
+      approvalUsers.value = response
+      approvalDialogVisible.value = true
+    }
+  } catch (error) {
+    console.error('获取待审核用户失败:', error)
+    ElMessage.error('获取待审核用户失败')
+  }
+}
+
+// 批准用户
+const handleApprove = async (user) => {
+  try {
+    ElMessageBox.confirm(
+      `确定要批准用户 ${user.userName} 的申请吗？`,
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info',
+      }
+    ).then(async () => {
+      // 直接传递 user 对象
+      const response = await approveUser(user)
+      if (response) {
+        ElMessage.success('用户审核批准成功')
+        // 添加日志
+        await addLog({
+          userId: localStorage.getItem('userId'),
+          logIntro: `批准用户申请：${user.userName}`,
+          logTime: formatDate(new Date()),
+          tableStatus: true
+        })
+        // 刷新待审核用户列表
+        const updatedUsers = approvalUsers.value.filter(item => item.userId !== user.userId)
+        approvalUsers.value = updatedUsers
+        pendingApprovalCount.value = updatedUsers.length
+        // 刷新用户列表
+        initTableData()
+      } else {
+        ElMessage.error('用户审核批准失败')
+      }
+    }).catch(() => {
+      ElMessage.info('已取消操作')
+    })
+  } catch (error) {
+    console.error('批准用户失败:', error)
+    ElMessage.error('批准用户失败')
+  }
+}
+
+// 拒绝用户
+const handleReject = async (user) => {
+  try {
+    ElMessageBox.confirm(
+      `确定要拒绝用户 ${user.userName} 的申请吗？`,
+      '警告',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    ).then(async () => {
+      const response = await rejectUser(user.userId)
+      if (response) {
+        ElMessage.success('用户申请已拒绝')
+        // 添加日志
+        await addLog({
+          userId: localStorage.getItem('userId'),
+          logIntro: `拒绝用户申请：${user.userName}`,
+          logTime: formatDate(new Date()),
+          tableStatus: true
+        })
+        // 刷新待审核用户列表
+        const updatedUsers = approvalUsers.value.filter(item => item.userId !== user.userId)
+        approvalUsers.value = updatedUsers
+        pendingApprovalCount.value = updatedUsers.length
+      } else {
+        ElMessage.error('拒绝用户申请失败')
+      }
+    }).catch(() => {
+      ElMessage.info('已取消操作')
+    })
+  } catch (error) {
+    console.error('拒绝用户失败:', error)
+    ElMessage.error('拒绝用户失败')
+  }
+}
+
 </script>
 
 <style>
@@ -593,5 +744,29 @@ const handleRoleFilter = () => {
 .offline-user {
   color: #909399;
   /* 离线用户灰色 */
+}
+
+/* 添加待审核用户卡片样式 */
+.pending-approval {
+  position: relative;
+  margin-bottom: 20px;
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+.pending-approval-card {
+  width: 180px;
+  background: linear-gradient(135deg, #e6a23c, #d49b38);
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.pending-approval-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 </style>

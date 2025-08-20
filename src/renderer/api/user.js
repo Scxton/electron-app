@@ -336,3 +336,80 @@ export function getRoleById(id) {
         throw error;
     });
 }
+
+// 用户注册
+export function registerUser(userRolePermissions) {
+    console.log('【api】Sending registration data:', userRolePermissions);
+    return request({
+        method: 'post',
+        url: "/userRolePermissions/register",
+        data: {
+            userName: userRolePermissions.userName,
+            userPwd: userRolePermissions.userPwd,
+            roleId: userRolePermissions.roleId,
+            userIntro: userRolePermissions.userIntro,
+            applicationTime: userRolePermissions.applicationTime
+        }
+    }).then(res => {
+        if (res && res.status === 200) {
+            return res;
+        }
+        
+    }).catch(error => {
+        if (error.response?.status === 403) {
+            error.message = "注册失败: 无权限访问该接口 (403 Forbidden)";
+        }
+        throw error;
+    });
+}
+
+// 查询所有角色
+export function queryAllRoles() {
+    return request({
+        url: "/roleTable/queryAll",
+        method: 'get'
+    }).then(res => {
+        return res;
+    }).catch(error => {
+        throw error;
+    });
+}
+
+// 查询待审核的用户
+export function queryApproval() {
+  return request({
+    url: '/userRolePermissions/queryApproval',
+    method: 'get'
+  }).then(response => {
+    return response;
+  }).catch(error => {
+    throw error;
+  });
+}
+
+// 审批用户(批准)
+export function approveUser(user) {
+  return request({
+    url: '/userRolePermissions/userApproval',
+    method: 'post',
+    data: user
+  }).then(response => {
+    return response;
+  }).catch(error => {
+    throw error;
+  });
+}
+
+// 审核用户(拒绝)
+export function rejectUser(userId) {
+  return request({
+    url: '/userRolePermissions/reject',
+    method: 'post',
+    params: { userId }
+  }).then(response => {
+    return response;
+  }).catch(error => {
+    throw error;
+  });
+}
+

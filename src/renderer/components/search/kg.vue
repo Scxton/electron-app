@@ -58,7 +58,9 @@
 <script setup>
 import { ref, onMounted, reactive, watch, nextTick } from 'vue';
 import * as echarts from 'echarts';
-import { getKnowledgeGraph } from '../../api/search';
+import { getKnowledgeGraph ,getKnowledgeGraphWithFilters} from '../../api/search';
+import { queryById } from '../../api/getUser';
+import { getProjectById } from '../../api/project';
 
 // 图表容器引用
 const chartContainer = ref(null);
@@ -185,6 +187,7 @@ function initRelationFilters() {
     rawTriples.value.forEach(triple => {
       if (triple && Array.isArray(triple) && triple.length >= 2 && triple[1] && triple[1] !== "null") {
         relationTypes.add(triple[1]);
+        
       }
     });
   }
@@ -200,19 +203,24 @@ function initRelationFilters() {
 // 为不同关系类型分配不同颜色
 function getRelationColor(relation) {
   const colorMap = {
-    '所属类别': '#FF5722',
-    '技术分类': '#2196F3',
-    '学科分类': '#9C27B0',
-    '组织连接': '#4CAF50',
-    '项目连接': '#FFC107',
-    '作者连接': '#607D8B'
+    '所属类别': '#4E79A7',       // 柔和蓝色
+    '技术分类': '#59A14F',       // 清新绿色
+    '学科分类': '#9C755F',       // 温暖棕色
+    '组织连接': '#F28E2B',       // 橙色
+    '项目连接': '#E15759',       // 红色
+    '作者连接': '#76B7B2',       // 绿松石色
+    '所属知识产权类型': '#EDC948', // 明亮黄色
+    '归档形式': '#B07AA1',       // 淡紫色
+    '创建': '#FF9DA7',          // 粉红色
+    '拥有': '#86BCB6',          // 浅绿色
+    '包含': '#BAB0AC'           // 灰褐色
   };
   
-  return colorMap[relation] || '#999';
+  return colorMap[relation] || '#AEAEAE'; // 默认为中性灰色
 }
 
-// 将三元组数据转换为图表所需的节点和链接格式
-function processTriples(triples, searchKeyword = '') {
+// 处理三元组数据转换为图表所需的节点和链接格式
+async function processTriples(triples, searchKeyword = '') {
   // 防御性检查
   if (!Array.isArray(triples) || triples.length === 0) {
     console.warn('processTriples: 无效的三元组数据', triples);
@@ -227,22 +235,130 @@ function processTriples(triples, searchKeyword = '') {
   // 用于跟踪搜索命中的节点
   const matchedNodes = new Set();
   
+  // 添加英文到中文的映射关系
+  const categoryMapping = {
+    'subject1': '课题1',
+    'subject2': '课题2',
+    'subject3': '课题3',
+    'subject4': '课题4',
+    'subject5': '课题5'
+  };
+  
+  const typeMapping = {
+    'document': '技术文件',
+    'standard': '标准草案',
+    'development': '开发平台',
+    'prototype': '科研样机',
+    'verification': '验证平台',
+    'testing': '测试平台',
+    'release': '发布平台',
+    'software': '软件',
+    'system': '系统类成果',
+    'technology': '技术类成果',
+    'hardware': '硬件类成果',
+    'patent': '专利',
+    'paper': '论文',
+    'report': '报告',
+    'project': '项目'
+  };
+  
+  // 用于缓存已查询的用户和项目数据
+  const userCache = new Map();
+  const projectCache = new Map();
+  
+  // 节点关系类型映射
+  const nodeRelationMap = new Map();
+  
+  // 第一次遍历：收集每个节点参与的关系类型
+  for (const triple of triples) {
+    if (!triple || !Array.isArray(triple) || triple.length < 3) {
+      continue;
+    }
+    
+    let source = String(triple[0]);
+    const relation = String(triple[1]);
+    let target = String(triple[2]);
+    
+    // 忽略无效值或被过滤的关系
+    if (source === "null" || target === "null" || !relationFilters[relation]) {
+      continue;
+    }
+    
+    // 为源节点和目标节点都记录这个关系
+    // 这是关键修改：确保源节点和目标节点都被标记为参与该关系
+    if (!nodeRelationMap.has(source)) {
+      nodeRelationMap.set(source, new Set());
+    }
+    nodeRelationMap.get(source).add(relation);
+    
+    if (!nodeRelationMap.has(target)) {
+      nodeRelationMap.set(target, new Set());
+    }
+    // 这里将同一关系添加给目标节点，这样目标节点也会获得相应的颜色
+    nodeRelationMap.get(target).add(relation);
+  }
+  
   // 处理三元组
-  triples.forEach((triple, index) => {
+  for (const triple of triples) {
     // 检查 triple 格式
     if (!triple || !Array.isArray(triple) || triple.length < 3) {
-      console.warn(`第 ${index} 个三元组无效:`, triple);
-      return;
+      console.warn(`三元组无效:`, triple);
+      continue;
     }
     
     // 确保所有元素都是字符串
-    const source = String(triple[0]);
+    let source = String(triple[0]);
     const relation = String(triple[1]);
-    const target = String(triple[2]);
+    let target = String(triple[2]);
+    
+    // 转换特定关系的目标值为中文
+    if (relation === '所属类别' || relation === '技术分类') {
+      target = typeMapping[target] || target;
+    } else if (relation === '学科分类') {
+      target = categoryMapping[target] || target;
+    } 
+    // 将用户ID转换为用户名称
+    else if (relation === '创建' || relation === '作者连接') {
+      // 检查是否需要查询用户名称（是否为数字ID）
+      if (/^\d+$/.test(source)) {
+        if (!userCache.has(source)) {
+          try {
+            const userData = await queryById(source);
+            if (userData && userData.userName) {
+              userCache.set(source, userData.userName);
+              source = userData.userName;
+            }
+          } catch (error) {
+            console.error(`获取用户ID ${source} 的数据失败:`, error);
+          }
+        } else {
+          source = userCache.get(source);
+        }
+      }
+    } 
+    // 将项目ID转换为项目名称
+    else if (relation === '拥有' || relation === '项目连接') {
+      // 检查是否需要查询项目名称（是否为数字ID）
+      if (/^\d+$/.test(source)) {
+        if (!projectCache.has(source)) {
+          try {
+            const projectData = await getProjectById(source);
+            if (projectData && projectData.projectName) {
+              projectCache.set(source, projectData.projectName);
+              source = projectData.projectName;
+            }
+          } catch (error) {
+            console.error(`获取项目ID ${source} 的数据失败:`, error);
+          }
+        } else {
+          source = projectCache.get(source);
+        }
+      }
+    }
     
     // 忽略无效值
     if (source === "null" || target === "null" || !relationFilters[relation]) {
-      return;
+      continue;
     }
     
     // 检查是否匹配搜索词
@@ -254,43 +370,47 @@ function processTriples(triples, searchKeyword = '') {
     
     // 如果正在搜索，但两个节点都不匹配，则跳过此关系
     if (isSearching && !sourceMatches && !targetMatches) {
-      return;
+      continue;
     }
     
     // 添加头实体节点
     if (!nodesMap.has(source)) {
+      // 获取节点颜色，基于其参与的关系类型
+      const nodeColor = getNodeColor(source, nodeRelationMap);
+      
       nodesMap.set(source, {
         id: source,
         name: source,
         symbolSize: source.length <= 2 ? 30 : Math.min(60, 30 + source.length * 1.5),
-        category: getCategoryFromNode(source),
         itemStyle: {
-          color: sourceMatches ? '#f44336' : undefined
+          color: sourceMatches ? '#f44336' : nodeColor
         }
       });
-    } else if (sourceMatches && !nodesMap.get(source).itemStyle?.color) {
-      // 更新已存在的节点，标记为搜索匹配
+    } else if (sourceMatches) {
+      // 修复：确保搜索匹配节点的颜色设置
       const node = nodesMap.get(source);
-      if (node) {
+      if (!node.itemStyle || node.itemStyle.color !== '#f44336') {
         node.itemStyle = { color: '#f44336' };
       }
     }
     
     // 添加尾实体节点
     if (!nodesMap.has(target)) {
+      // 获取节点颜色，基于其参与的关系类型
+      const nodeColor = getNodeColor(target, nodeRelationMap);
+      
       nodesMap.set(target, {
         id: target,
         name: target,
         symbolSize: target.length <= 2 ? 30 : Math.min(60, 30 + target.length * 1.5),
-        category: getCategoryFromNode(target),
         itemStyle: {
-          color: targetMatches ? '#f44336' : undefined
+          color: targetMatches ? '#f44336' : nodeColor
         }
       });
-    } else if (targetMatches && !nodesMap.get(target).itemStyle?.color) {
-      // 更新已存在的节点，标记为搜索匹配
+    } else if (targetMatches) {
+      // 修复：确保搜索匹配节点的颜色设置
       const node = nodesMap.get(target);
-      if (node) {
+      if (!node.itemStyle || node.itemStyle.color !== '#f44336') {
         node.itemStyle = { color: '#f44336' };
       }
     }
@@ -305,12 +425,12 @@ function processTriples(triples, searchKeyword = '') {
         formatter: relation
       },
       lineStyle: {
-        width: 2,
+        width: 3,
         curveness: 0.2,
         color: getRelationColor(relation)
       }
     });
-  });
+  }
   
   // 确保节点和链接格式正确
   const nodes = Array.from(nodesMap.values()).map(node => {
@@ -319,8 +439,7 @@ function processTriples(triples, searchKeyword = '') {
       // 确保所有必需属性都有定义
       id: node.id || 'unknown',
       name: node.name || 'unnamed',
-      symbolSize: node.symbolSize || 30,
-      category: node.category !== undefined ? node.category : 0
+      symbolSize: node.symbolSize || 30
     };
   });
   
@@ -332,7 +451,6 @@ function processTriples(triples, searchKeyword = '') {
         id: 'no-results',
         name: '无匹配结果',
         symbolSize: 50,
-        category: 3,
         itemStyle: {
           color: '#d32f2f'
         }
@@ -342,26 +460,6 @@ function processTriples(triples, searchKeyword = '') {
   }
   
   return { nodes, links };
-}
-
-// 根据节点的特征确定其类别
-function getCategoryFromNode(node) {
-  if (!node) return 0;
-  
-  const nodeStr = String(node);
-  
-  // 简单判断：数字ID很可能是用户或项目ID
-  if (/^\d+$/.test(nodeStr)) {
-    return 0; // ID类别
-  }
-  
-  // 根据关键词判断
-  if (/report|paper|patent|project/.test(nodeStr)) {
-    return 1; // 成果类型
-  }
-  
-  // 其他情况认为是成果名称
-  return 2; // 成果名称
 }
 
 // 处理搜索输入
@@ -389,7 +487,7 @@ function resetGraph() {
 }
 
 // 更新图表
-function updateGraph() {
+async function updateGraph() {
   if (!chart) {
     console.warn('图表实例未初始化');
     return;
@@ -427,8 +525,8 @@ function updateGraph() {
     
     console.log(`过滤后的三元组数: ${filteredTriples.length}`);
     
-    // 处理三元组数据
-    const { nodes, links } = processTriples(filteredTriples, searchText.value);
+    // 处理三元组数据 - 注意这里现在是异步的
+    const { nodes, links } = await processTriples(filteredTriples, searchText.value);
     
     console.log(`生成的节点数: ${nodes.length}, 链接数: ${links.length}`);
     
@@ -454,16 +552,9 @@ function updateGraph() {
       return;
     }
     
-    const categories = [
-      { name: 'ID' },
-      { name: '成果类型' },
-      { name: '成果名称' },
-      { name: '搜索结果' }
-    ];
-    
     const option = {
       title: {
-        text: `知识图谱关系可视化 (${nodes.length}个节点, ${links.length}个关系)`,
+        text: `知识图谱关系可视化`,
         top: 'top',
         left: 'center'
       },
@@ -478,12 +569,6 @@ function updateGraph() {
           }
         }
       },
-      legend: [{
-        data: categories.map(a => a.name),
-        top: 30,
-        left: 'center',
-        selectedMode: 'multiple'
-      }],
       animationDuration: 1500,
       animationEasingUpdate: 'quinticInOut',
       series: [
@@ -493,7 +578,6 @@ function updateGraph() {
           layout: layoutType.value,
           data: nodes,
           links: links,
-          categories: categories,
           roam: true,
           label: {
             show: true,
@@ -516,6 +600,13 @@ function updateGraph() {
             focus: 'adjacency',
             lineStyle: {
               width: 5
+            }
+          },
+          // 确保节点颜色正确显示的额外设置
+          itemStyle: {
+            emphasis: {
+              shadowBlur: 10,
+              shadowColor: 'rgba(0, 0, 0, 0.3)'
             }
           }
         }
@@ -609,6 +700,33 @@ onMounted(async () => {
     loadError.value = '图表容器不存在';
   }
 });
+
+// 根据节点参与的关系类型确定颜色
+function getNodeColor(nodeId, nodeRelationMap) {
+  // 获取节点参与的所有关系类型
+  const relations = nodeRelationMap.get(nodeId);
+  
+  // 如果没有关系信息，返回默认颜色
+  if (!relations || relations.size === 0) {
+    return '#2196F3'; // 默认蓝色
+  }
+  
+  // 关系优先级列表 - 决定多个关系时显示哪种颜色
+  const priorityRelations = [
+    '学科分类', '技术分类', '所属类别', '所属知识产权类型', 
+    '创建', '拥有', '包含', '项目连接', '作者连接', '组织连接', '归档形式'
+  ];
+  
+  // 按优先级查找节点参与的关系
+  for (const relation of priorityRelations) {
+    if (relations.has(relation)) {
+      return getRelationColor(relation);
+    }
+  }
+  
+  // 如果没有匹配的优先关系，使用第一个关系类型的颜色
+  return getRelationColor(Array.from(relations)[0]);
+}
 </script>
 
 <style scoped>

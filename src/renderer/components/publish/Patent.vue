@@ -1,11 +1,10 @@
 <template>
   <div class="container">
     <div class="form-container">
-      <!-- 添加专利按钮 -->
       <div class="header-buttons">
-        <el-button type="primary" @click="goToPatentForm">
-          <el-icon><Plus /></el-icon>
-          添加专利
+        <el-button type="primary" @click="goBack">
+          <el-icon><ArrowLeft /></el-icon>
+          返回成果表单
         </el-button>
         <div class="clear-button-container">
           <el-button type="warning" @click="clearForm">
@@ -17,17 +16,14 @@
         </div>
       </div>
 
-      <h2 class="section-title">填写成果基本信息</h2>
+      <h2 class="section-title">填写专利信息</h2>
 
       <el-form ref="formRef" :model="formData" :rules="rules" label-position="top" @submit.prevent>
         <!-- 成果类型和文件数量 -->
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="成果类型" prop="type" required>
-              <el-select v-model="formData.type" placeholder="请选择成果类型" class="w-100">
-                <el-option v-for="item in achievementTypes" :key="item.value" :label="item.label"
-                  :value="item.value"></el-option>
-              </el-select>
+              <el-input v-model="formData.type" disabled></el-input>
             </el-form-item>
           </el-col>
 
@@ -38,7 +34,7 @@
           </el-col>
         </el-row>
 
-        <!-- 项目选择 - 移至成果类型之后 -->
+        <!-- 项目选择 -->
         <el-row :gutter="20">
           <el-col :span="24">
             <el-form-item label="项目分类" prop="projectId">
@@ -50,7 +46,7 @@
           </el-col>
         </el-row>
 
-        <!-- 新增课题分类和技术分类 -->
+        <!-- 课题分类和技术分类 -->
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="课题分类" prop="category" required>
@@ -62,39 +58,77 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="技术分类" prop="techType" required>
-              <el-select v-model="formData.techType" placeholder="请选择技术分类" class="w-100" :disabled="!formData.type">
-                <el-option 
-                  v-for="item in filteredTechTypes" 
-                  :key="item.value" 
-                  :label="item.label"
-                  :value="item.value">
-                </el-option>
-              </el-select>
+              <el-input v-model="formData.techType" disabled></el-input>
             </el-form-item>
           </el-col>
         </el-row>
 
-        <!-- 成果名称 -->
-        <el-form-item label="成果名称" prop="title" required>
-          <el-input v-model="formData.title" placeholder="请输入成果名称"></el-input>
+        <!-- 专利类型 -->
+        <el-form-item label="专利类型" prop="patentType" required>
+          <el-select v-model="formData.patentType" placeholder="请选择专利类型" class="w-100">
+            <el-option label="发明专利" value="invention"></el-option>
+            <el-option label="软件著作" value="software"></el-option>
+            <el-option label="实用新型专利" value="utility"></el-option>
+            <el-option label="外观设计专利" value="design"></el-option>
+          </el-select>
         </el-form-item>
 
-        <!-- 成果简介 -->
-        <el-form-item label="成果简介" prop="description" required>
-          <el-input v-model="formData.description" type="textarea" :rows="4" placeholder="请简要描述您的成果内容" :maxlength="500"
+        <!-- 产权编号 -->
+        <el-form-item label="产权编号" prop="patentNumber" required>
+          <el-input v-model="formData.patentNumber" placeholder="请输入产权编号"></el-input>
+        </el-form-item>
+
+        <!-- 专利日期 -->
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="专利生效时间" prop="effectiveDate" required>
+              <el-date-picker
+                v-model="formData.effectiveDate"
+                type="date"
+                placeholder="选择生效日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                class="w-100">
+              </el-date-picker>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="专利过期时间" prop="expiryDate" required>
+              <el-date-picker
+                v-model="formData.expiryDate"
+                type="date"
+                placeholder="选择过期日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                class="w-100">
+              </el-date-picker>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 专利名称 -->
+        <el-form-item label="专利名称" prop="title" required>
+          <el-input v-model="formData.title" placeholder="请输入专利名称"></el-input>
+        </el-form-item>
+
+        <!-- 专利简介 -->
+        <el-form-item label="专利简介" prop="description" required>
+          <el-input v-model="formData.description" type="textarea" :rows="4" placeholder="请简要描述您的专利内容" :maxlength="500"
             show-word-limit></el-input>
           <div class="form-tip">建议字数在500字以内</div>
         </el-form-item>
 
-        <!-- 成果亮点 -->
+        <!-- 关键词 -->
         <el-form-item label="关键词" prop="highlights">
-          <el-input v-model="formData.highlights" type="textarea" :rows="4" placeholder="请输出和成果相关的关键词，用逗号隔开"></el-input>
+          <el-input v-model="formData.highlights" type="textarea" :rows="4" placeholder="请输出和专利相关的关键词，用逗号隔开"></el-input>
         </el-form-item>
+        
+        <!-- 版本号 -->
         <el-form-item label="版本号" prop="version">
           <el-input v-model="versionWithPrefix" placeholder="请输入版本号"></el-input>
         </el-form-item>
 
-        <!-- Modified organization section -->
+        <!-- 所属组织 -->
         <el-row :gutter="20">
           <el-col :span="24">
             <el-form-item label="所属组织" prop="achievementBelongingOrganization" required>
@@ -119,32 +153,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted, computed, watch } from 'vue'
-import { Delete, Plus } from '@element-plus/icons-vue'
+import { ref, reactive, nextTick, onMounted, computed } from 'vue'
+import { Delete, ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
-import Upload from './Upload.vue'
 import { addAchievement, getAllOrganizations } from '../../api/upload'
-//import  {add} from "../api/upload";
-import { getAllProjects } from '../../api/project' // 新增导入
+import { getAllProjects } from '../../api/project'
 
-//导入上传组件
 // 表单引用
 const formRef = ref(null)
 const router = useRouter()
 
-// 成果类型选项
-const achievementTypes = [
-  { label: '技术类成果', value: 'technology' },
-  { label: '系统类成果', value: 'system' },
-  { label: '软件类成果', value: 'software' },
-  { label: '硬件类成果', value: 'hardware' }
-]
-
-// Add organizations data
+// 项目和组织数据
 const organizations = ref([])
+const projects = ref([])
 
-// 新增分类选项
+// 课题分类选项
 const categoryTypes = [
   { label: '课题1', value: 'subject1' },
   { label: '课题2', value: 'subject2' },
@@ -153,33 +177,12 @@ const categoryTypes = [
   { label: '课题5', value: 'subject5' }
 ]
 
-// 技术分类选项 - 改为按类型分组
-const techTypeOptions = {
-  technology: [
-    { label: '技术文件', value: 'document' },
-    { label: '标准草案', value: 'standard' }
-  ],
-  system: [
-    { label: '开发平台', value: 'development' },
-    { label: '科研样机', value: 'prototype' },
-    { label: '验证平台', value: 'verification' },
-    { label: '测试平台', value: 'testing' },
-    { label: '发布平台', value: 'release' }
-  ],
-  software: [
-    { label: '软件', value: 'software' }
-  ],
-  hardware: [
-    { label: '样机', value: 'prototype' }
-  ]
-}
-
-// 表单数据初始化
+// 表单数据初始化 - 专利默认为技术类成果和专利分类
 const formData = reactive({
   title: '',
-  type: '',
+  type: '技术类成果',  // 显示为中文
   category: '',
-  techType: '',
+  techType: '专利',   // 显示为中文
   fileCount: 1,
   description: '',
   highlights: '',
@@ -188,21 +191,20 @@ const formData = reactive({
   projectId: null,
   userId: localStorage.getItem('userId') || null,
   userName: localStorage.getItem('username') || '',
-  category: '',
-  techType: ''
+  patentType: '',     // 专利类型
+  patentNumber: '',   // 产权编号
+  effectiveDate: '',  // 生效时间
+  expiryDate: ''      // 过期时间
 })
-console.log("formData-Ach_info", formData)
+
 // 表单验证规则
 const rules = {
   title: [
-    { required: true, message: '请输入成果名称', trigger: 'blur' },
+    { required: true, message: '请输入专利名称', trigger: 'blur' },
     { min: 2, max: 100, message: '长度应在 2 到 100 个字符之间', trigger: 'blur' }
   ],
-  type: [
-    { required: true, message: '请选择成果类型', trigger: 'change' }
-  ],
   description: [
-    { required: true, message: '请输入成果简介', trigger: 'blur' },
+    { required: true, message: '请输入专利简介', trigger: 'blur' },
     { min: 3, max: 500, message: '字数应在100-500字之间', trigger: 'blur' }
   ],
   fileCount: [
@@ -212,9 +214,48 @@ const rules = {
   category: [
     { required: true, message: '请选择课题分类', trigger: 'change' }
   ],
-  techType: [
-    { required: true, message: '请选择技术分类', trigger: 'change' }
+  patentType: [
+    { required: true, message: '请选择专利类型', trigger: 'change' }
+  ],
+  patentNumber: [
+    { required: true, message: '请输入产权编号', trigger: 'blur' }
+  ],
+  effectiveDate: [
+    { required: true, message: '请选择专利生效时间', trigger: 'change' }
+  ],
+  expiryDate: [
+    { required: true, message: '请选择专利过期时间', trigger: 'change' }
+  ],
+  achievementBelongingOrganization: [
+    { required: true, message: '请选择所属组织', trigger: 'change' }
   ]
+}
+
+// 版本号自动前缀功能
+const versionWithPrefix = computed({
+  get: () => {
+    if (!formData.version || formData.version.startsWith('v')) {
+      return formData.version
+    }
+    return `v${formData.version}`
+  },
+  set: (val) => {
+    if (!val) {
+      formData.version = ''
+      return
+    }
+    
+    if (val.startsWith('v')) {
+      formData.version = val
+    } else {
+      formData.version = `v${val}`
+    }
+  }
+})
+
+// 返回成果表单页面
+const goBack = () => {
+  router.push('/publish/info')
 }
 
 // 提交表单
@@ -222,11 +263,18 @@ const confirmForm = async () => {
   await formRef.value.validate(async (valid) => {
     if (valid) {
       try {
-        // 保存表单数据到 localStorage，但不提交到服务器
-        localStorage.setItem('Ach_info', JSON.stringify(formData))
-        console.log("formData-Ach_info", formData)
+        // 创建提交数据副本
+        const submitData = {
+          ...formData,
+          type: 'technology',  // 转换为英文值
+          techType: 'patent'   // 转换为英文值
+        }
+        
+        // 保存表单数据到 localStorage
+        localStorage.setItem('Ach_info', JSON.stringify(submitData))
+        console.log("formData-Patent", submitData)
 
-        // 直接跳转到文件上传页面
+        // 跳转到文件上传页面
         router.push('/publish/upload')
 
         ElMessage.success('请选择要上传的文件')
@@ -242,22 +290,20 @@ const confirmForm = async () => {
 
 // 保存草稿
 const saveDraft = () => {
-  localStorage.setItem('draftFormData', JSON.stringify(formData))
+  localStorage.setItem('patentDraftData', JSON.stringify(formData))
   ElMessage.success('草稿已保存，您可以稍后继续编辑')
-
 }
 
-// 添加加载保存的数据的方法
+// 加载保存的草稿数据
 const loadSavedData = () => {
-  const savedData = localStorage.getItem('draftFormData')
+  const savedData = localStorage.getItem('patentDraftData')
   if (savedData) {
     const parsedData = JSON.parse(savedData)
-    // 确保日期对象正确恢复
     Object.assign(formData, parsedData)
   }
 }
 
-// Add function to fetch organizations
+// 获取组织数据
 const fetchOrganizations = async () => {
   try {
     const response = await getAllOrganizations()
@@ -274,17 +320,14 @@ const fetchOrganizations = async () => {
   }
 }
 
-const projects = ref([])
-
-// 添加获取项目数据的函数
+// 获取项目数据
 const fetchProjects = async () => {
   try {
     const response = await getAllProjects()
-    console.log("project response", response)
     if (response) {
       projects.value = response.map(item => ({
         projectId: item.projectId,
-        projectName: item.projectName // 根据实际接口返回的字段名调整
+        projectName: item.projectName
       }))
       console.log("projects", projects.value)
     }
@@ -293,48 +336,8 @@ const fetchProjects = async () => {
     ElMessage.error('获取项目列表失败')
   }
 }
-// 在组件挂载时加载数据
-onMounted(() => {
-  loadSavedData()
-  fetchOrganizations()
-  fetchProjects()
-  formData.userId = localStorage.getItem('userId') || null
-  formData.userName = localStorage.getItem('username') || ''
 
-  // 新增：从路由参数中获取并填充数据
-  const route = useRoute()
-  console.log('Route query:', route.query) // 调试信息
-
-  if (route.query.id) {
-    console.log('Filling form data from route query') // 调试信息
-    formData.title = route.query.title || ''
-    formData.type = route.query.type || ''
-    formData.description = route.query.description || ''
-    formData.version = route.query.version || ''
-    formData.achievementBelongingOrganization = {
-      id: route.query.achievementBelongingOrganization?.id || null,
-      name: route.query.achievementBelongingOrganization?.name || ''
-    }
-    formData.projectId = route.query.projectId || null
-    formData.category = route.query.category || ''
-    formData.techType = route.query.techType || ''
-    formData.highlights = route.query.highlights || ''
-    formData.fileCount = route.query.fileCount || 1
-
-    // 调试信息：打印填充后的表单数据
-    console.log('Form data after filling:', JSON.parse(JSON.stringify(formData)))
-  } else {
-    console.log('No route query id found') // 调试信息
-  }
-
-  // 调试信息：打印当前的组织和项目数据
-  nextTick(() => {
-    console.log('Organizations:', organizations.value)
-    console.log('Projects:', projects.value)
-  })
-})
-
-// 添加清除表单方法
+// 清除表单
 const clearForm = () => {
   ElMessageBox.confirm(
     '确定要清除所有已填写的信息吗？此操作不可恢复。',
@@ -348,17 +351,21 @@ const clearForm = () => {
     .then(() => {
       Object.assign(formData, {
         title: '',
-        type: '',
+        type: '技术类成果',  // 保持固定值
         category: '',
-        techType: '',
+        techType: '专利',    // 保持固定值
         fileCount: 1,
         description: '',
         highlights: '',
         version: '',
         achievementBelongingOrganization: { id: null, name: '' },
-        projectId: null
+        projectId: null,
+        patentType: '',
+        patentNumber: '',
+        effectiveDate: '',
+        expiryDate: ''
       })
-      localStorage.removeItem('draftFormData')
+      localStorage.removeItem('patentDraftData')
       ElMessage.success('已清除所有信息')
     })
     .catch(() => {
@@ -366,49 +373,14 @@ const clearForm = () => {
     })
 }
 
-// 添加版本号自动前缀功能
-const versionWithPrefix = computed({
-  get: () => {
-    // 如果已有前缀或为空，直接返回
-    if (!formData.version || formData.version.startsWith('v')) {
-      return formData.version
-    }
-    // 否则添加前缀
-    return `v${formData.version}`
-  },
-  set: (val) => {
-    // 如果输入为空，直接设为空
-    if (!val) {
-      formData.version = ''
-      return
-    }
-    
-    // 如果输入已有前缀v，直接保存
-    if (val.startsWith('v')) {
-      formData.version = val
-    } else {
-      // 否则添加前缀v
-      formData.version = `v${val}`
-    }
-  }
+// 组件加载时执行
+onMounted(() => {
+  loadSavedData()
+  fetchOrganizations()
+  fetchProjects()
+  formData.userId = localStorage.getItem('userId') || null
+  formData.userName = localStorage.getItem('username') || ''
 })
-
-// 根据选择的成果类型过滤技术分类
-const filteredTechTypes = computed(() => {
-  if (!formData.type) return []
-  return techTypeOptions[formData.type] || []
-})
-
-// 监听成果类型变化，重置技术分类
-watch(() => formData.type, (newVal) => {
-  formData.techType = ''
-})
-
-// 添加专利按钮点击方法
-const goToPatentForm = () => {
-  router.push('/publish/patent')
-}
-
 </script>
 
 <style lang="css" scoped>
@@ -430,6 +402,18 @@ const goToPatentForm = () => {
   box-shadow: 0 3px 15px rgba(0, 0, 0, 0.06);
   width: 100%;
   transition: all 0.3s ease;
+}
+
+.header-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.clear-button-container {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .section-title {
@@ -546,17 +530,6 @@ const goToPatentForm = () => {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-.clear-button-container {
-  display: flex;
-  justify-content: flex-end;
-}
-
-:deep(.el-button--warning) {
-  padding: 4px 12px;
-  height: 28px;
-  font-size: 13px;
-}
-
 /* Row 间距调整 */
 :deep(.el-row) {
   margin-bottom: 6px !important;
@@ -581,6 +554,12 @@ const goToPatentForm = () => {
     width: 100%;
     margin-left: 0 !important;
     margin-bottom: 6px;
+  }
+  
+  .header-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 }
 
@@ -631,18 +610,4 @@ const goToPatentForm = () => {
 ::-webkit-scrollbar-track {
   background: #f5f7fa;
 }
-
-/* 添加专利按钮容器样式 */
-.header-buttons {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-/* 调整清除按钮容器，使其不再占据整行 */
-.clear-button-container {
-  display: flex;
-  justify-content: flex-end;
-}
-</style>
+</style> 

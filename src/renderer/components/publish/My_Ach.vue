@@ -321,6 +321,13 @@ export default {
     const loadingVersions = ref(false)
     const previousAchievements = ref(new Map()) // 存储上一次的成果状态
 
+    const achievementTypes = [
+      { label: '技术类成果', value: 'technology' },
+      { label: '系统类成果', value: 'system' }, 
+      { label: '软件类成果', value: 'software' },
+      { label: '硬件类成果', value: 'hardware' }
+    ]
+
     const updateStatistics = (achievements) => {
       totalCount.value = achievements.length
       pendingCount.value = achievements.filter(a => a.auditFlag == 0||a.auditFlag ==2).length
@@ -378,13 +385,8 @@ export default {
     }
 
     const translateCategory = (category) => {
-      const translations = {
-        paper: '论文',
-        patent: '专利',
-        project: '项目',
-        report: '报告'
-      };
-      return translations[category] || category;
+      const type = achievementTypes.find(t => t.value === category)
+      return type ? type.label : category
     }
 
     const getStatus = (auditFlag) => {
@@ -567,7 +569,7 @@ export default {
       fetchVersionHistory()
     }
 
-    const downloadVersion = (version) => {
+    const downloadVersion = async (version) => {
       if (!currentAchievement.value) return;
       
       try {
@@ -577,7 +579,41 @@ export default {
         console.log('Downloading version file:', fileName);
         
         // 调用下载API
-        downloadAchievements(fileName);
+        const response = await downloadAchievements(fileName)
+        console.log('下载API响应类型:', response);
+        
+        // 创建Blob对象
+        const blob = new Blob([response], { type: response.type || 'application/octet-stream' });
+        
+        // 设置文件名 - 单个文件使用原文件名，多个文件使用时间戳命名的zip
+        // let fileName;
+        // if (submitResult.length === 1) {
+        //     fileName = submitResult[0];
+        // } else {
+        //     const now = new Date();
+        //     const timestamp = now.toISOString().replace(/[:.]/g, '-').substring(0, 19);
+        //     fileName = `批量下载_${timestamp}.zip`;
+        // }
+        
+        // 使用更隐蔽的方式下载文件
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none'; // 隐藏链接元素
+        document.body.appendChild(link);
+        
+        // 模拟点击但不触发可见的系统对话框
+        link.click();
+        
+        // 延迟一段时间后移除链接（确保下载开始）
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(link);
+        }, 100);
+        
+    
+
         
         // 显示成功消息
         ElMessage({
@@ -720,7 +756,8 @@ export default {
       showVersionHistory,
       handleVersionSizeChange,
       handleVersionCurrentChange,
-      downloadVersion
+      downloadVersion,
+      achievementTypes
     }
   }
 }

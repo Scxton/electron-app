@@ -68,11 +68,7 @@
       :header-cell-style="{ background: '#f5f7fa', color: '#333', fontWeight: 'bold' }">
       <el-table-column prop="id" label="案件编号" width="180" />
       <el-table-column prop="Pid" label="投诉专利编号" width="180" />
-      <el-table-column prop="user" label="投诉用户">
-        <template #default="scope">
-          {{ scope.row.userName || scope.row.user }}
-        </template>
-      </el-table-column>
+      <el-table-column prop="user" label="投诉用户" />
       <el-table-column prop="complaintTime" label="投诉时间" width="110">
         <template #default="scope">
           {{ formatDate(scope.row.complaintTime) }}
@@ -216,13 +212,11 @@ import { ref, onMounted, computed } from 'vue'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMain, ElMessage, ElMessageBox } from 'element-plus';
 import { queryAllComplaints, updateComplaintStatus, updateComplaintStatusToAccepted, deleteComplaintById, downloadComplaintFile } from '../../api/patentComplaints';
-import { queryById } from '../../api/getUser';
 
 interface Complaint {
   id: string
   Pid: string
   user: string
-  userName?: string
   type: string
   other: string
   status: number
@@ -294,41 +288,14 @@ const fetchComplaints = async () => {
         fileName: item.fileName,
         complaintTime: item.complaintTime || new Date()
       }));
-      
-      // 存储映射后的数据
       allComplaints.value = mappedData;
       tableData.value = mappedData;
-      
-      // 为每个投诉记录查询用户名
-      await fetchUserNames();
     }
   } catch (error) {
     console.error('获取投诉信息失败:', error);
     ElMessage.error('获取投诉信息失败');
   } finally {
     loading.value = false;
-  }
-};
-
-// 获取用户名的函数
-const fetchUserNames = async () => {
-  try {
-    for (const complaint of allComplaints.value) {
-      if (complaint.user) {
-        const userInfo = await queryById(complaint.user);
-        if (userInfo && userInfo.userName) {
-          // 找到匹配的投诉记录并更新用户名
-          const complaintToUpdate = allComplaints.value.find(c => c.id === complaint.id);
-          if (complaintToUpdate) {
-            complaintToUpdate.userName = userInfo.userName;
-          }
-        }
-      }
-    }
-    // 确保表格数据也更新
-    tableData.value = [...allComplaints.value];
-  } catch (error) {
-    console.error('获取用户名失败:', error);
   }
 };
 

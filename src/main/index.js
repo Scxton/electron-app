@@ -326,15 +326,117 @@ ipcMain.handle('select-directory', async () => {
   return result
 })
 
+ipcMain.on('open_folder', async (event, path) => {
+  try {
+    // 尝试打开文件或文件夹
+    await shell.openPath(path);
+    
+  } catch (error) {
+    console.error('无法打开路径:', error);
+   
+  }
+  return 
+});
 
 
 
-// ipcMain.on('force-close', () => {
-//   if(myWindow) {
-//     myWindow.destory()
+
+
+
+
+ipcMain.on('open_folder_dialog', (event) => {
+  try {
+    dialog.showOpenDialog({
+      title: '选择下载目录',
+      buttonLabel: '确认',
+      properties: ['openDirectory']
+    }).then((result) => {
+      if (result.filePaths.length > 0) {
+        event.reply('receive_folder_path_reply', result.filePaths[0])
+      }
+    })
+  } catch (error) {
+    console.error('打开文件夹失败:', error)
+  }
+
+
+  // app.quit()
+})
+let receivedChunks = []
+ipcMain.handle('save_file', async (event, { blob, fileName, savePath, chunkIndex, totalChunks }) => {
+
+
+
+  try {
+    if (chunkIndex === 0) {
+      // console.log('receivedChunks', receivedChunks)
+      receivedChunks = []
+    }
+    // console.log('receivedChunks', receivedChunks)
+    const buffer = Buffer.from(blob)
+    receivedChunks[chunkIndex] = buffer
+    if (receivedChunks.length === totalChunks) {
+      const finalBuffer = Buffer.concat(receivedChunks)
+      const filePath = path.join(savePath, fileName)
+      console.log('save_file_path', filePath)
+
+      await fs.promises.writeFile(filePath, finalBuffer)
+      receivedChunks = []
+      console.log('文件保存成功')
+      dialog.showMessageBox({
+        type: 'info',
+        title: '保存成功',
+        message: '文件已成功保存',
+        detail: `文件路径: ${filePath}`
+      })
+      return true
+    }
+
+
+  } catch (error) {
+    console.error('文件保存失败:', error)
+    return false
+  }
+
+
+
+
+
+  // return result
+})
+
+
+// ipcMain.handle('save_file', async (event, { blob, fileName, savePath }) => {
+
+
+//   try {
+
+//     const buffer = Buffer.from(blob)
+
+
+//     const finalBuffer = Buffer.concat(receivedChunks)
+//     const filePath = path.join(savePath, fileName)
+//     console.log('save_file_path', filePath)
+
+//     await fs.promises.writeFile(filePath, buffer)
+//     console.log('文件保存成功')
+//     return true
+
+
+
+//   } catch (error) {
+//     console.error('文件保存失败:', error)
+//     return false
 //   }
-//   // app.quit()
+
+
+
+
+
+//   // return result
 // })
+
+
 
 
 // ipcMain.on('force-close', () => {
