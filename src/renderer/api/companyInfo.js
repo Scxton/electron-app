@@ -15,7 +15,7 @@ export function getAllCompanies() {
     url: '/organizationInfo/queryAll',
     method: 'get'
   }).then(response => {
-    logApiCall('getAllCompanies', null, response);
+    // logApiCall('getAllCompanies', null, response);
     return response;
   }).catch(error => {
     console.error('API Error - getAllCompanies:', error);

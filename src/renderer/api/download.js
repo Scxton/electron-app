@@ -5,7 +5,7 @@ import { getToken } from '../http/token'
 // 提交下载表单
 export function submitDownloadForm(achievementIds, userId) {
   console.log('【api】提交下载表单，参数：', { achievementIds, userId });
-  console.log('achievementIds类型:', Array.isArray(achievementIds) ? 'Array' : typeof achievementIds);
+  // console.log('achievementIds类型:', Array.isArray(achievementIds) ? 'Array' : typeof achievementIds);
   
   // 将数组转换为逗号分隔的字符串
   const achievementIdsStr = Array.isArray(achievementIds) ? achievementIds.join(',') : achievementIds;
@@ -34,11 +34,11 @@ export function downloadAchievements(fileNames, achievementIds = [], downloadPat
   const fileNamesStr = Array.isArray(fileNames) ? fileNames.join(',') : fileNames;
   
   // 将下载任务添加到全局事件或本地存储
-  addDownloadTask(fileNames, achievementIds);
+  // addDownloadTask(fileNames, achievementIds);
   
   console.log('【api】下载请求参数 fileNames:', fileNamesStr);
   console.log('【api】下载请求参数类型:', typeof fileNamesStr);
-  
+  let progress = 0;
   return axios({
     url: 'http://localhost:8082/achievement/download',
     method: 'post',
@@ -47,6 +47,10 @@ export function downloadAchievements(fileNames, achievementIds = [], downloadPat
       downloadPath: downloadPath // 添加下载路径参数，后端可以用来保存文件
     },
     responseType: 'blob', // 指定响应类型为blob
+
+    // onDownloadProgress: (progressEvent) => {
+    //   progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+    // },
     headers: {
       'Accept': 'application/octet-stream',  // 添加Accept头
       // 'Content-Type': 'application/x-www-form-urlencoded',
@@ -56,16 +60,16 @@ export function downloadAchievements(fileNames, achievementIds = [], downloadPat
   }).then(response => {
     // 后端直接返回文件内容，这里只需检查响应是否为blob类型
     console.log('【API】成功获取文件内容:', fileNames);
-    
+    console.log('【API】下载进度:', progress);
     // 更新下载任务状态为成功
-    updateDownloadTaskStatus(fileNames, true);
+    // updateDownloadTaskStatus(fileNames, true);
     
     return response.data;
   }, error => {
     console.log('错误', error.message);
     
     // 更新下载任务状态为失败
-    updateDownloadTaskStatus(fileNames, false);
+    // updateDownloadTaskStatus(fileNames, false);
     
     throw error;
   });
@@ -182,6 +186,25 @@ export function deleteDownloadRecordById(id) {
     return response;
   }).catch(error => {
     console.error('【api】下载记录删除失败：', error);
+    throw error;
+  });
+}
+
+// 删除成果文件
+export function deleteAchievementFile(fileName) {
+  console.log('【api】开始删除成果文件，文件名：', fileName);
+  
+  return request({
+    url: '/achievement/deletefile',
+    method: 'post',
+    params: {
+      fileName
+    }
+  }).then(response => {
+    console.log('【api】文件删除成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】文件删除失败：', error);
     throw error;
   });
 }

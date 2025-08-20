@@ -144,7 +144,7 @@ const router = useRouter()
 // 新增的响应式数据
 const recentSearches = ref(['深度学习', '图像识别', '目标检测'])
 const categories = ref([
-  { name: 'theory', displayName: '理论', icon: 'fas fa-brain', count: '156', id: 1 },
+  { name: 'subject1', displayName: '课题1', icon: 'fas fa-brain', count: '156', id: 1 },
   { name: 'system', displayName: '系统', icon: 'fas fa-cogs', count: '238', id: 2 },
   { name: 'application', displayName: '应用', icon: 'fas fa-mobile-alt', count: '342', id: 3 },
   { name: 'integration', displayName: '集成', icon: 'fas fa-puzzle-piece', count: '185', id: 4 },
@@ -153,7 +153,7 @@ const categories = ref([
 
 // 修改技术分类数据
 const techCategories = ref([
-  { name: 'frontend', displayName: '前端', icon: 'fas fa-desktop', count: '245', id: 1 },
+  { name: 'document', displayName: '技术文件', icon: 'fas fa-desktop', count: '245', id: 1 },
   { name: 'backend', displayName: '后端', icon: 'fas fa-server', count: '312', id: 2 },
   { name: 'framework', displayName: '框架', icon: 'fas fa-cubes', count: '178', id: 3 },
   { name: 'computing', displayName: '计算', icon: 'fas fa-microchip', count: '203', id: 4 },

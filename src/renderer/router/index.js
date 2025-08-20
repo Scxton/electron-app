@@ -58,7 +58,14 @@ const routes = [
         path: '/publish/info',
         name: '成果信息',
         iconClass: 'fa fa-upload',
+        
         component: () => import('@renderer/components/publish/Ach_info.vue')
+      },
+      {
+        path: '/publish/patent',
+        name: '专利',
+        iconClass: 'fa fa-upload',
+        component: () => import('@renderer/components/publish/Patent.vue')
       },
       
       {
@@ -103,6 +110,12 @@ const routes = [
     component: () => import('@renderer/views/home/Home.vue'),
     children: [
       {
+        path: '/home/face',
+        name: '成果总览',
+        iconClass: 'fa fa-line-chart',
+        component: () => import('@renderer/components/search/face.vue')
+      },
+      {
         path: '/home/basicSearch',
         name: '基础检索',
         iconClass: 'fa fa-line-chart',
@@ -137,9 +150,9 @@ const routes = [
     children: [
       {
         path: '/home/download',
-        name: '成果下载',
+        name: '下载历史',
         iconClass: 'fa fa-line-chart',
-        component: () => import('@renderer/components/application/Download.vue')
+        component: () => import('@renderer/components/application/downloadface.vue')
     },
     // {
     //   path: '/home/history',
@@ -304,7 +317,8 @@ const routes = [
         component: () => import('@renderer/components/logs/SystemLogs.vue')
       }
     ]
-  }
+  },
+  
 ]
 const router = createRouter({
   history: createWebHashHistory(),

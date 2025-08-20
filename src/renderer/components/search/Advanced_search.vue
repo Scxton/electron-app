@@ -41,10 +41,10 @@
         <!-- 成果类型 -->
         <el-form-item label="成果类型：">
           <el-checkbox-group v-model="searchForm.types">
-            <el-checkbox label="paper">论文</el-checkbox>
-            <el-checkbox label="patent">专利</el-checkbox>
-            <el-checkbox label="project">项目</el-checkbox>
-            <el-checkbox label="report">报告</el-checkbox>
+            <el-checkbox label="technology">技术类成果</el-checkbox>
+            <el-checkbox label="system">系统类成果</el-checkbox>
+            <el-checkbox label="software">软件类成果</el-checkbox>
+            <el-checkbox label="hardware">硬件类成果</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
 
@@ -68,11 +68,13 @@
             collapse-tags
             collapse-tags-tooltip
             placeholder="请选择来源机构">
-            <el-option-group label="机构类型">
-              <el-option label="高校" value="university"></el-option>
-              <el-option label="研究所" value="institute"></el-option>
-              <el-option label="机关" value="government"></el-option>
-            </el-option-group>
+            <el-option
+              v-for="company in companies"
+              :key="company.value"
+              :label="company.label"
+              :value="company.value">
+              {{ company.label }}
+            </el-option>
           </el-select>
         </el-form-item>
 
@@ -130,10 +132,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, RefreshLeft } from '@element-plus/icons-vue'
 import { fuzzySearchAchievements, preciseSearchAchievements } from '../../api/search';
+import { getAllCompanies } from '../../api/companyInfo';
+
 const router = useRouter()
 
 // 热门关键词
@@ -147,6 +151,22 @@ const searchForm = reactive({
   dateRange: [],
   organizations: [],
   path: []
+})
+
+// 公司列表
+const companies = ref([])
+
+// 获取公司列表
+onMounted(async () => {
+  try {
+    const response = await getAllCompanies()
+    companies.value = response.map(company => ({
+      value: company.organizationId,
+      label: company.organizationName
+    }))
+  } catch (error) {
+    console.error('获取公司列表失败:', error)
+  }
 })
 
 // 关联路径选项
@@ -210,22 +230,18 @@ const formatDateRange = computed(() => {
 // 获取类型标签
 const getTypeLabel = (type) => {
   const typeMap = {
-    paper: '论文',
-    patent: '专利',
-    project: '项目',
-    report: '报告'
+    technology: '技术类成果',
+    system: '系统类成果', 
+    software: '软件类成果',
+    hardware: '硬件类成果'
   }
   return typeMap[type] || type
 }
 
 // 获取机构标签
 const getOrgLabel = (org) => {
-  const orgMap = {
-    university: '高校',
-    institute: '研究所',
-    government: '机关'
-  }
-  return orgMap[org] || org
+  const company = companies.value.find(c => c.value === org)
+  return company ? company.label : org
 }
 
 // 输入变化处理
@@ -255,17 +271,18 @@ const handleSearch = () => {
         console.log(`转换日期: ${date} → ${isoDate}`)
         return isoDate
       }),
-      organizations: searchForm.organizations,
+      organizations: searchForm.organizations.map(org => parseInt(org)), // Convert to integers
       path: searchForm.path
     }
 
-    console.debug('构建的搜索配置:', searchConfig)
+    console.log('构建的搜索配置:', searchConfig)
     const queryString = JSON.stringify(searchConfig)
     console.log('生成的查询字符串:', queryString)
 
     router.push({
       path: '/home/basicSearch/',
       query: { advanced: queryString }
+      
     })
 
     console.log('[Advanced Search] 路由跳转完成')

@@ -1,24 +1,15 @@
 <template>
   <div class="achievement-container">
-    <div class="display-controls">
-      <div class="filter-section">
-        <div class="search-box">
-          <el-input v-model="searchText" placeholder="搜索成果名称或发布单位" clearable @input="filterAchievements">
-            <template #prefix>
-              <i class="fas fa-search"></i>
-            </template>
-          </el-input>
-        </div>
-        <label>成果状态: </label>
-        <div class="status-select-wrapper">
-          <select v-model="selectedStatus" @change="filterAchievements" class="status-select">
-            <option value="all">全部</option>
-            <option value="0">待审核</option>
-            <option value="1">已发布</option>
-          </select>
-          <i class="fas fa-chevron-down select-arrow"></i>
-        </div>
-        <label>成果类型: </label>
+    <!-- 添加统计图 -->
+    <div class="chart-container">
+      <div ref="chart" class="chart" style="width: 100%; height: 400px;"></div>
+      <div id="download-chart" class="chart" style="width: 100%; height: 400px; margin-top: 20px;"></div>
+    </div>
+
+    <!-- 类型选择器 -->
+    <div class="type-filter-container">
+      <div class="type-filter-wrapper">
+        <label class="type-filter-label">成果类型: </label>
         <div class="type-select-wrapper">
           <select v-model="selectedCategory" @change="filterAchievements" class="type-select">
             <option value="all">全部</option>
@@ -26,33 +17,10 @@
             <option value="patent">专利</option>
             <option value="project">项目</option>
             <option value="report">报告</option>
-            <option value="technology">技术类成果</option>
-            <option value="system">系统类成果</option>
-            <option value="software">软件类成果</option>
-            <option value="hardware">硬件类成果</option>
           </select>
           <i class="fas fa-chevron-down select-arrow"></i>
         </div>
-        <div class="statistics">
-          <span class="stat-item">成果总数: {{ totalCount }}</span>
-          <span class="stat-item">待审核: {{ pendingCount }}</span>
-          <span class="stat-item">已发布: {{ publishedCount }}</span>
-        </div>
       </div>
-      <div class="view-controls">
-        <button class="review-btn" @click="showReviewModal">
-          <i class="fas fa-clipboard-check"></i> 待审核成果
-        </button>
-        <button class="add-btn" @click="addAchievement">
-          <i class="fas fa-plus"></i> 添加成果
-        </button>
-      </div>
-    </div>
-
-    <!-- 添加统计图 -->
-    <div class="chart-container">
-      <div ref="chart" class="chart" style="width: 100%; height: 400px;"></div>
-      <div id="download-chart" class="chart" style="width: 100%; height: 400px; margin-top: 20px;"></div>
     </div>
 
     <div class="list-container">
@@ -60,11 +28,9 @@
         <div class="list-column">成果名称</div>
         <div class="list-column">成果类型</div>
         <div class="list-column">发布单位</div>
-        <div class="list-column">成果状态</div>
         <div class="list-column">当前版本</div>
         <div class="list-column">下载次数</div>
         <div class="list-column">上传时间</div>
-        <div class="list-column">操作</div>
       </div>
       <div class="list-item" v-for="achievement in paginatedAchievements" :key="achievement.id">
         <div class="list-cell achievement-name">
@@ -72,22 +38,9 @@
         </div>
         <div class="list-cell">{{ translateCategory(achievement.achievementCategory) }}</div>
         <div class="list-cell">{{ achievement.organizationName }}</div>
-        <div class="list-cell">
-          <span :class="['status-badge', getStatusClass(achievement.auditFlag)]">
-            {{ getStatus(achievement.auditFlag) }}
-          </span>
-        </div>
         <div class="list-cell">{{ achievement.achievementVersion || '-' }}</div>
         <div class="list-cell">{{ achievement.achievementDownloadCount }}</div>
         <div class="list-cell">{{ formatDate(achievement.uploadTime) }}</div>
-        <div class="list-cell actions">
-          <button class="edit-btn" @click="editAchievement(achievement)">
-            编辑
-          </button>
-          <button class="delete-btn" @click="deleteAchievement(achievement)">
-            删除
-          </button>
-        </div>
       </div>
       <div class="pagination-controls">
         <div class="page-size-select">
@@ -120,7 +73,7 @@
     <el-dialog v-model="editDialogVisible" title="编辑成果信息" width="30%">
       <el-form :model="editForm" label-width="120px">
         <el-form-item label="成果名称">
-          <el-input v-model="editForm.achievementName" :disabled="true" />
+          <el-input v-model="editForm.achievementName" />
         </el-form-item>
         <el-form-item label="成果类型">
           <el-select v-model="editForm.achievementCategory">
@@ -135,7 +88,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="版本号">
-          <el-input v-model="editForm.achievementVersion" :disabled="true" />
+          <el-input v-model="editForm.achievementVersion" />
         </el-form-item>
         <el-form-item label="成果简介">
           <el-input v-model="editForm.achievementIntro" type="textarea" :rows="3" />
@@ -197,17 +150,23 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import ReviewComponent from '../publish/review.vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { queryAll, update, deleteItem, queryAllDownloadRecords } from '../../api/achieveInfo.js'
+import * as echarts from 'echarts'
+import { 
+  queryAll, 
+  update, 
+  deleteItem, 
+  queryAllDownloadRecords 
+} from '../../api/achieveInfo.js'
 import { getAllCompanies } from '../../api/companyInfo'
 import { addLog } from '../../api/log.js'
-import * as echarts from 'echarts'
 import { getVersionHistoryWithPagination } from '../../api/search.js'
 import { downloadAchievements } from '../../api/download.js'
 
 const router = useRouter()
+
+// Refs
 const achievements = ref([])
 const allAchievements = ref([])
-const selectedStatus = ref('all')
 const selectedCategory = ref('all')
 const totalCount = ref(0)
 const pendingCount = ref(0)
@@ -238,6 +197,7 @@ const versionPageSize = ref(10)
 const versionTotal = ref(0)
 const currentAchievement = ref(null)
 
+// Methods
 const updateStatistics = (achievements) => {
   totalCount.value = achievements.length
   pendingCount.value = achievements.filter(a => a.auditFlag == 0 || a.auditFlag == 2).length
@@ -247,19 +207,16 @@ const updateStatistics = (achievements) => {
 const fetchAchievements = async () => {
   try {
     const response = await queryAll()
-    console.log(response)
-    allAchievements.value = response
+    allAchievements.value = response.filter(achievement => achievement.auditFlag === 1)
     filterAchievements()
-    // updateStatistics(allAchievements.value) // Update statistics
   } catch (error) {
     console.error('Error fetching achievements:', error)
   }
 }
 
 const filterAchievements = () => {
-  let filtered = allAchievements.value;
+  let filtered = allAchievements.value
 
-  // Filter by search text
   if (searchText.value) {
     const searchLower = searchText.value.toLowerCase()
     filtered = filtered.filter(achievement =>
@@ -268,29 +225,14 @@ const filterAchievements = () => {
     )
   }
 
-  // Filter by status if not 'all'
-  if (selectedStatus.value !== 'all') {
-    if (selectedStatus.value === '0') {
-      // If selected status is pending (0), include both 0 and 2
-      filtered = filtered.filter(
-        achievement => achievement.auditFlag == 0 || achievement.auditFlag == 2
-      );
-    } else {
-      // Otherwise, filter by the exact status value
-      filtered = filtered.filter(
-        achievement => achievement.auditFlag == selectedStatus.value
-      );
-    }
-  }
-
-  // Filter by category if not 'all'
   if (selectedCategory.value !== 'all') {
     filtered = filtered.filter(
       achievement => achievement.achievementCategory === selectedCategory.value
-    );
+    )
   }
 
-  achievements.value = filtered;
+  filtered.sort((a, b) => b.achievementDownloadCount - a.achievementDownloadCount)
+  achievements.value = filtered
   updateStatistics(filtered)
 }
 
@@ -432,10 +374,6 @@ const prevPage = () => {
     currentPage.value--
     updatePagination()
   }
-}
-
-const showReviewModal = () => {
-  reviewModalVisible.value = true
 }
 
 const deleteAchievement = async (achievement) => {
@@ -599,6 +537,34 @@ const initChart = () => {
   }
 
   myChart.setOption(option)
+  
+  // Add click event handler
+  myChart.on('click', (params) => {
+    console.log('Chart item clicked:', params)
+    const category = Object.keys(typeCounts).find(key => 
+      translateCategory(key) === params.name
+    )
+    
+    if (category) {
+      console.log(`Navigating to search with category: ${category}`)
+      const searchParams = {
+        keywords: '', // 空关键词
+        searchType: 'fuzzy',
+        achievementcategorytypes: [category], // 使用分类名称
+        dateRange: [],
+        organizations: [],
+        path: []
+      }
+      router.push({
+        path: '/home/basicSearch',
+        query: {
+          advanced: JSON.stringify(searchParams)
+        }
+      })
+    } else {
+      console.warn('Could not find category for clicked item:', params)
+    }
+  })
 }
 
 const getCategoryColor = (category) => {
@@ -832,20 +798,20 @@ const downloadVersion = async (version) => {
     });
   }
 }
-watch(achievements, () => {
-  updatePagination()
-})
 
+// Watchers
+watch(achievements, updatePagination)
 watch(allAchievements, () => {
   if (chart.value) {
     initChart()
   }
 })
 
+// Lifecycle hooks
 onMounted(() => {
   fetchAchievements()
-  fetchCompanies() // 获取公司数据
-  processDownloadStats() // 新增
+  fetchCompanies()
+  processDownloadStats()
   nextTick(() => {
     initChart()
   })
@@ -856,149 +822,41 @@ onMounted(() => {
 .achievement-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
-  background-color: #f9fafc;
-  border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.03);
-  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  padding: 20px;
 }
 
 .display-controls {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 32px;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.filter-section {
-  margin-bottom: 24px;
-  display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  background-color: #fff;
-  padding: 16px 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-}
-
-.filter-section:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-.search-box {
-  width: 300px;
-  margin-right: 20px;
-}
-
-.search-box .el-input__prefix {
-  display: flex;
-  align-items: center;
-  padding-left: 8px;
-  color: #999;
-}
-
-.status-select-wrapper, .type-select-wrapper {
-  position: relative;
-  display: inline-block;
-  width: 200px;
-}
-
-.type-select-wrapper {
-  margin-right: 15px;
-}
-
-.status-select, .type-select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  background-color: #fff;
-  font-size: 14px;
-  color: #333;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-.status-select:hover, .type-select:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.15);
-}
-
-.status-select:focus, .type-select:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
-}
-
-.select-arrow {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: #909399;
-  font-size: 12px;
-  transition: transform 0.3s ease, color 0.3s ease;
-}
-
-.status-select:hover + .select-arrow, 
-.type-select:hover + .select-arrow {
-  color: #409eff;
-  transform: translateY(-50%) rotate(180deg);
+  margin-bottom: 30px;
 }
 
 .view-controls {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-}
-
-.review-btn, .add-btn {
-  padding: 10px 18px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.review-btn {
-  background: linear-gradient(135deg, #f39c12, #e67e22);
-  color: #fff;
-}
-
-.review-btn:hover {
-  background: linear-gradient(135deg, #e67e22, #d35400);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.3);
 }
 
 .add-btn {
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  padding: 8px 16px;
+  background-color: #67c23a;
   color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .add-btn:hover {
-  background: linear-gradient(135deg, #27ae60, #219653);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+  background-color: #85ce61;
 }
 
-.review-btn i, .add-btn i {
-  font-size: 16px;
+.add-btn i {
+  margin-right: 6px;
 }
 
 .list-container {
@@ -1095,63 +953,6 @@ onMounted(() => {
   color: #e64242;
 }
 
-/* Status badge in list view */
-.list-cell .status-badge {
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  display: inline-block;
-  min-width: 60px;
-  text-align: center;
-}
-
-/* 待审核状态 */
-.list-cell .status-badge.pending {
-  background-color: #fff3e0;
-  color: #ff9800;
-  border: 1px solid #ffe0b2;
-  animation: pulsePending 1.5s infinite;
-}
-
-/* 已发布状态 */
-.list-cell .status-badge.published {
-  background-color: #e8f5e9;
-  color: #4caf50;
-  border: 1px solid #c8e6c9;
-  animation: pulsePublished 1.5s infinite;
-}
-
-@keyframes pulsePending {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.2);
-  }
-
-  70% {
-    box-shadow: 0 0 0 8px rgba(255, 152, 0, 0);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 152, 0, 0);
-  }
-}
-
-@keyframes pulsePublished {
-  0% {
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.2);
-  }
-
-  70% {
-    box-shadow: 0 0 0 8px rgba(76, 175, 80, 0);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
-  }
-}
-
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -1222,40 +1023,6 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-}
-
-.statistics {
-  margin-left: 20px;
-  display: flex;
-  gap: 15px;
-}
-
-.stat-item {
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.stat-item:nth-child(1) {
-  /* 成果总数 */
-  background-color: #f0f9ff;
-  color: #409eff;
-  border: 1px solid #d6e9ff;
-}
-
-.stat-item:nth-child(2) {
-  /* 待审核 */
-  background-color: #fff0f0;
-  color: #f56c6c;
-  border: 1px solid #ffd6d6;
-}
-
-.stat-item:nth-child(3) {
-  /* 已发布 */
-  background-color: #e8f5e9;
-  color: #67c23a;
-  border: 1px solid #c2e7b0;
 }
 
 .pagination-controls {
@@ -1430,11 +1197,35 @@ onMounted(() => {
   text-decoration: underline;
 }
 
+/* 类型选择器容器 */
+.type-filter-container {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+  padding: 0 20px;
+}
+
+.type-filter-wrapper {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.type-filter-label {
+  font-size: 16px;
+  color: #606266;
+  margin-right: 12px;
+  font-weight: 500;
+}
+
+/* 增强选择器样式 */
 .type-select-wrapper {
   position: relative;
   display: inline-block;
   width: 200px;
-  margin-right: 15px;
 }
 
 .type-select {
@@ -1462,5 +1253,14 @@ onMounted(() => {
   outline: none;
   border-color: #409eff;
   box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
+}
+
+.select-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #909399;
 }
 </style>

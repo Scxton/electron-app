@@ -12,12 +12,12 @@ const service = axios.create({
 
 //添加请求拦截器
 service.interceptors.request.use((config) => {
-    console.log("config = ",config.baseApi)
+    // console.log("config = ",config.baseApi)
     //请求之前做什么(获取并设置token)
     let token = getToken('token')
     // console.log("token ===== ",token)
     if (token != "" && token != null) {
-        console.log("22222222222222222222222")
+        // console.log("22222222222222222222222")
         config.headers['Authorization'] = "Bearer " + getToken('token')
         
     }

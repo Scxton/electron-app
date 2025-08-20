@@ -30,7 +30,7 @@
               <el-icon><Timer /></el-icon> 时间排序
             </el-radio>
             <el-radio label="citations">
-              <el-icon><StarFilled /></el-icon> 浏览量排序
+              <el-icon><StarFilled /></el-icon> 下载量排序
             </el-radio>
           </el-radio-group>
         </div>
@@ -42,17 +42,17 @@
             成果类型优先显示
           </h3>
           <el-checkbox-group v-model="settings.priorityTypes" class="compact-checkbox-group">
-            <el-checkbox label="paper">
-              <el-icon><Document /></el-icon> 论文
+            <el-checkbox label="technology">
+              <el-icon><Cpu /></el-icon> 技术类成果
             </el-checkbox>
-            <el-checkbox label="patent">
-              <el-icon><Medal /></el-icon> 专利
-            </el-checkbox>
-            <el-checkbox label="standard">
-              <el-icon><Collection /></el-icon> 项目
+            <el-checkbox label="system">
+              <el-icon><DataAnalysis /></el-icon> 系统类成果
             </el-checkbox>
             <el-checkbox label="software">
-              <el-icon><Monitor /></el-icon> 技术报告
+              <el-icon><Monitor /></el-icon> 软件类成果
+            </el-checkbox>
+            <el-checkbox label="hardware">
+              <el-icon><Cpu /></el-icon> 硬件类成果
             </el-checkbox>
           </el-checkbox-group>
         </div>
@@ -150,7 +150,8 @@ import {
   Setting, List, Sort, Timer, Aim, StarFilled, 
   Files, Document, Medal, Collection, Monitor,
   Clock, InfoFilled, Search, Edit, Reading,
-  Key, User, Filter, Calendar, Check, Refresh
+  Key, User, Filter, Calendar, Check, Refresh,
+  Cpu, DataAnalysis
 } from '@element-plus/icons-vue'
 
 // 页面大小选项
@@ -160,7 +161,7 @@ const pageSizes = [5, 20, 30, 50, 100]
 const settings = ref({
   pageSize: 20,
   defaultSort: 'time',
-  priorityTypes: ['paper'],
+  priorityTypes: ['technology'],
   historyLimit: 50,
   autoSaveHistory: true,
   defaultSearchScopes: ['title', 'abstract', 'keywords'],
@@ -190,7 +191,7 @@ const resetSettings = () => {
   settings.value = {
     pageSize: 20,
     defaultSort: 'time',
-    priorityTypes: ['paper'],
+    priorityTypes: ['technology'],
     historyLimit: 50,
     autoSaveHistory: true,
     defaultSearchScopes: ['title', 'abstract', 'keywords'],
