@@ -12,28 +12,17 @@
 
     <!-- 搜索栏 -->
     <div class="search-bar">
-      <el-input
-        v-model="searchQuery"
-        placeholder="搜索单位名称"
-        clearable
-        @clear="handleSearch"
-        @input="handleSearch"
-      >
+      <el-input v-model="searchQuery" placeholder="搜索单位名称" clearable @clear="handleSearch" @input="handleSearch">
         <template #prefix>
-          <el-icon><Search /></el-icon>
+          <el-icon>
+            <Search />
+          </el-icon>
         </template>
       </el-input>
     </div>
 
     <!-- 数据表格 -->
-    <el-table
-      v-loading="loading"
-      :data="paginatedCompanies"
-      border
-      stripe
-      style="width: 100%"
-      class="company-table"
-    >
+    <el-table v-loading="loading" :data="paginatedCompanies" border stripe style="width: 100%" class="company-table">
       <el-table-column prop="id" label="单位ID" width="100" />
       <el-table-column prop="name" label="单位名称" />
       <el-table-column prop="address" label="单位地址" />
@@ -49,17 +38,13 @@
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="scope">
           <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
-          <el-button
-            size="small"
-            type="danger"
-            @click="handleDelete(scope.row)"
-          >删除</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 分页 -->
-    <div class="pagination">
+    <!-- <div class="pagination">
       <el-pagination
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
@@ -89,20 +74,32 @@
           前往 <el-input v-model.number="currentPage" size="small" style="width: 50px" /> 页
         </template>
       </el-pagination>
+    </div> -->
+
+    <div class="pagination-controls">
+      <div class="page-size-select">
+        <label>每页显示:</label>
+        <select v-model="pageSize" @change="changePageSize">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="15">15</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+      <div class="page-buttons">
+        <button class="page-btn" :disabled="currentPage === 1" @click="prevPage">
+          上一页
+        </button>
+        <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+        <button class="page-btn" :disabled="currentPage === totalPages" @click="nextPage">
+          下一页
+        </button>
+      </div>
     </div>
 
     <!-- 添加/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogType === 'add' ? '添加单位' : '编辑单位'"
-      width="600px"
-    >
-      <el-form
-        ref="companyFormRef"
-        :model="companyForm"
-        :rules="rules"
-        label-width="100px"
-      >
+    <el-dialog v-model="dialogVisible" :title="dialogType === 'add' ? '添加单位' : '编辑单位'" width="600px">
+      <el-form ref="companyFormRef" :model="companyForm" :rules="rules" label-width="100px">
         <el-form-item label="单位名称" prop="name">
           <el-input v-model="companyForm.name" placeholder="请输入单位名称" />
         </el-form-item>
@@ -128,11 +125,7 @@
     </el-dialog>
 
     <!-- 删除确认对话框 -->
-    <el-dialog
-      v-model="deleteDialogVisible"
-      title="确认删除"
-      width="400px"
-    >
+    <el-dialog v-model="deleteDialogVisible" title="确认删除" width="400px">
       <p>确定要删除单位 "{{ companyToDelete?.name }}" 吗？此操作不可恢复。</p>
       <template #footer>
         <span class="dialog-footer">
@@ -143,11 +136,7 @@
     </el-dialog>
 
     <!-- 修改：成果统计对话框 -->
-    <el-dialog
-      v-model="achievementStatsVisible"
-      :title="`${selectedCompanyName} 年度成果统计`"
-      width="800px"
-    >
+    <el-dialog v-model="achievementStatsVisible" :title="`${selectedCompanyName} 年度成果统计`" width="800px">
       <div ref="lineChartRef" style="width: 100%; height: 400px;"></div>
       <template #footer>
         <span class="dialog-footer">
@@ -236,7 +225,7 @@ const filteredCompanies = computed(() => {
   if (!searchQuery.value) {
     return companies.value;
   }
-  return companies.value.filter(company => 
+  return companies.value.filter(company =>
     company.name.toLowerCase().includes(searchQuery.value.toLowerCase())
   );
 });
@@ -391,13 +380,13 @@ const fetchCompanies = async () => {
     if (Array.isArray(response)) {
       // 直接返回数组的情况
       backendData = response;
-    } 
-    
+    }
+
     // 转换数据，处理null值
     companies.value = await Promise.all(backendData.map(async item => {
       // 获取每个单位的成果数量
       const achievementCount = await getAchievementCount(item.organizationId);
-      const projectCount = await getProjectCount(item.organizationId);    
+      const projectCount = await getProjectCount(item.organizationId);
       // 更新数据库中的achievementCount  
       try {
         await updateCompany({
@@ -408,7 +397,7 @@ const fetchCompanies = async () => {
       } catch (error) {
         console.error('更新单位成果数量出错:', error);
       }
-      
+
       return {
         id: item.organizationId,
         name: item.organizationName,
@@ -421,7 +410,7 @@ const fetchCompanies = async () => {
         status: item.tableStatus
       };
     }));
-    
+
     console.log('Transformed company data:', companies.value);
   } catch (error) {
     console.error('获取单位列表出错:', error);
@@ -433,7 +422,7 @@ const fetchCompanies = async () => {
 const getProjectCount = async (organizationId) => {
   try {
     const response = await countProjectsByOrganizationId(organizationId);
-    if (response ) {
+    if (response) {
       return response;
     }
     console.warn(`Invalid project count response for organizationId: ${organizationId}`, response);
@@ -446,37 +435,58 @@ const getProjectCount = async (organizationId) => {
 // 新增方法：获取单位成果数量
 const getAchievementCount = async (organizationId) => {
   try {
-    const searchBody = { 
+    const searchBody = {
       achievementBelongingOrganizations: [organizationId]
     };
     // console.log('Search body:', searchBody);
     const response = await fuzzySearchAchievements(searchBody);
     console.log('Response for organizationId:', organizationId, response);
-    
+
     if (!response || !Array.isArray(response)) {
       console.warn(`Invalid response for organizationId: ${organizationId}`, response);
       return 0;
     }
-    
+
     return response.length;
   } catch (error) {
     console.error('获取成果数量出错:', error);
     return 0;
   }
-};    
+};
 
 const handleSearch = () => {
-  currentPage.value = 1;  
-};  
-
-const handleSizeChange = (val) => {
-  pageSize.value = val;
   currentPage.value = 1;
 };
 
-const handleCurrentChange = (val) => {
-  currentPage.value = val;
-};
+// const handleSizeChange = (val) => {
+//   pageSize.value = val;
+//   currentPage.value = 1;
+// };
+
+// const handleCurrentChange = (val) => {
+//   currentPage.value = val;
+// };
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredCompanies.value.length / pageSize.value);
+});
+
+const changePageSize = () => {
+  currentPage.value = 1
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
 
 const resetForm = () => {
   companyForm.value = {
@@ -489,7 +499,7 @@ const resetForm = () => {
     projectCount: 0,
     achievementCount: 0  // 保留这两个字段用于显示，但不在表单中编辑
   };
-  
+
   if (companyFormRef.value) {
     companyFormRef.value.resetFields();
   }
@@ -505,29 +515,29 @@ const handleEdit = (row) => {
   dialogType.value = 'edit';
   companyForm.value = { ...row };
   dialogVisible.value = true;
-  
+
   console.log('Editing company:', row);
 };
 
 const handleDelete = (row) => {
   companyToDelete.value = row;
   deleteDialogVisible.value = true;
-  
+
   console.log('Preparing to delete company:', row);
   console.log('Delete company ID:', row.id);
 };
 
 const confirmDelete = async () => {
   if (!companyToDelete.value) return;
-  
+
   try {
     const userId = localStorage.getItem('userId');
     const userName = localStorage.getItem('username');
     console.log('Deleting company with ID:', companyToDelete.value.id);
     const response = await deleteCompany(companyToDelete.value.id);
-    
+
     console.log('Delete response:', typeof response);
-    
+
     if (response === 1 || response === '1') {
       ElMessage.success('删除成功');
       // 添加日志
@@ -555,23 +565,23 @@ const submitForm = async () => {
     console.error('Form reference not found');
     return;
   }
-  
+
   try {
     // 表单验证
     await companyFormRef.value.validate();
     const userId = localStorage.getItem('userId');
     const userName = localStorage.getItem('username');
     console.log('Submitting form data:', companyForm.value);
-    console.log("companyForm.value",companyForm.value);
+    console.log("companyForm.value", companyForm.value);
     // 提交表单
     if (dialogType.value === 'add') {
       const response = await addCompany(companyForm.value);
-      
-      if (response ) {
+
+      if (response) {
         ElMessage.success('添加成功');
         // 添加日志
         await addLog({
-          userId:userId ,
+          userId: userId,
           logIntro: `添加单位: ${companyForm.value.name}`,
           logTime: new Date().toISOString().split('T')[0],
           tableStatus: true
@@ -590,7 +600,7 @@ const submitForm = async () => {
         ElMessage.success('更新成功');
         // 添加日志
         await addLog({
-          userId:userId,
+          userId: userId,
           logIntro: `更新单位信息: ${companyForm.value.name}`,
           logTime: new Date().toISOString().split('T')[0],
           tableStatus: true
@@ -614,11 +624,11 @@ const getAchievementStats = async (organizationId) => {
       achievementBelongingOrganizations: [organizationId]
     };
     const response = await fuzzySearchAchievements(searchBody);
-    
+
     if (!response || !Array.isArray(response)) {
       return [];
     }
-    
+
     // 按年份统计
     const yearMap = new Map();
     response.forEach(achievement => {
@@ -627,7 +637,7 @@ const getAchievementStats = async (organizationId) => {
         yearMap.set(year, (yearMap.get(year) || 0) + 1);
       }
     });
-    
+
     // 转换为数组并排序（修改排序逻辑）
     return Array.from(yearMap.entries())
       .map(([year, count]) => ({ year, count }))
@@ -728,7 +738,7 @@ const updateLineChart = (stats) => {
           x2: 0,
           y2: 1,
           colorStops: [{
-            offset: 0, color: 'rgba(26, 115, 232, 0.2)' 
+            offset: 0, color: 'rgba(26, 115, 232, 0.2)'
           }, {
             offset: 1, color: 'rgba(26, 115, 232, 0)'
           }]
@@ -749,13 +759,13 @@ const updateLineChart = (stats) => {
 // 修改：显示成果统计
 const showAchievementStats = async (row) => {
   if (row.achievementCount === 0) return;
-  
+
   loading.value = true;
   try {
     selectedCompanyName.value = row.name;
     const stats = await getAchievementStats(row.id);
     achievementStatsVisible.value = true;
-    
+
     // 初始化折线图
     await nextTick();
     initLineChart();
@@ -893,5 +903,57 @@ const showAchievementStats = async (row) => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   margin-bottom: 24px;
   border: 1px solid #ebeef5;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-top: 1px solid #ebeef5;
+}
+
+.page-size-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-size-select select {
+  padding: 6px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.page-btn {
+  padding: 6px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: #f5f7fa;
+  border-color: #c0c4cc;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #606266;
 }
 </style>

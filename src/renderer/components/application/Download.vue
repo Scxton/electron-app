@@ -4,15 +4,21 @@
     <el-card class="download-stats">
       <div class="stats-container">
         <div class="stat-item">
-          <el-icon><DataLine /></el-icon>
+          <el-icon>
+            <DataLine />
+          </el-icon>
           <span>总下载速度：{{ totalDownloadSpeed }} MB/s</span>
         </div>
         <div class="stat-item">
-          <el-icon><View /></el-icon>
+          <el-icon>
+            <View />
+          </el-icon>
           <span>活动任务：{{ activeDownloads }}</span>
         </div>
         <div class="stat-item">
-          <el-icon><Clock /></el-icon>
+          <el-icon>
+            <Clock />
+          </el-icon>
           <span>等待任务：{{ waitingDownloads }}</span>
         </div>
       </div>
@@ -20,37 +26,20 @@
 
     <!-- Download Actions -->
     <div class="download-actions">
-      <el-button 
-        type="primary" 
-        @click="openFileSelection"
-        icon="Plus"
-      >
+      <el-button type="primary" @click="openFileSelection" icon="Plus">
         添加下载
       </el-button>
-      <el-button 
-        type="success" 
-        @click="startAllDownloads"
-        :disabled="!canStartAll"
-      >
+      <el-button type="success" @click="startAllDownloads" :disabled="!canStartAll">
         全部开始
       </el-button>
-      <el-button 
-        type="danger" 
-        @click="pauseAllDownloads"
-        :disabled="!canPauseAll"
-      >
+      <el-button type="danger" @click="pauseAllDownloads" :disabled="!canPauseAll">
         全部暂停
       </el-button>
     </div>
 
     <!-- Download List -->
     <el-card class="download-list">
-      <el-table 
-        :data="downloadTasks" 
-        stripe 
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
-      >
+      <el-table :data="downloadTasks" stripe style="width: 100%" @selection-change="handleSelectionChange">
         <!-- Multiselect Column -->
         <el-table-column type="selection" width="55" />
 
@@ -74,10 +63,7 @@
 
         <el-table-column label="状态" prop="status" width="120">
           <template #default="{ row }">
-            <el-tag 
-              :type="getStatusType(row.status)" 
-              effect="light"
-            >
+            <el-tag :type="getStatusType(row.status)" effect="light">
               {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
@@ -85,37 +71,20 @@
 
         <el-table-column label="进度" width="200">
           <template #default="{ row }">
-            <el-progress 
-              :percentage="calculateProgress(row)" 
-              :status="getProgressStatus(row.status)"
-            />
+            <el-progress :percentage="calculateProgress(row)" :status="getProgressStatus(row.status)" />
           </template>
         </el-table-column>
 
         <el-table-column label="操作" width="180">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button 
-                v-if="row.status === 'paused'" 
-                type="success" 
-                link 
-                @click="resumeDownload(row)"
-              >
+              <el-button v-if="row.status === 'paused'" type="success" link @click="resumeDownload(row)">
                 继续
               </el-button>
-              <el-button 
-                v-if="row.status === 'downloading'" 
-                type="warning" 
-                link 
-                @click="pauseDownload(row)"
-              >
+              <el-button v-if="row.status === 'downloading'" type="warning" link @click="pauseDownload(row)">
                 暂停
               </el-button>
-              <el-button 
-                type="danger" 
-                link 
-                @click="deleteDownload(row)"
-              >
+              <el-button type="danger" link @click="deleteDownload(row)">
                 删除
               </el-button>
             </div>
@@ -125,21 +94,11 @@
     </el-card>
 
     <!-- File Selection Modal -->
-    <el-dialog 
-      v-model="fileSelectionDialogVisible" 
-      title="选择下载文件" 
-      width="600px"
-    >
+    <el-dialog v-model="fileSelectionDialogVisible" title="选择下载文件" width="600px">
       <el-form>
         <!-- 文件选择逻辑 -->
         <el-form-item label="选择文件">
-          <el-upload
-            multiple
-            drag
-            action="#"
-            :on-change="handleFileChange"
-            :auto-upload="false"
-          >
+          <el-upload multiple drag action="#" :on-change="handleFileChange" :auto-upload="false">
             <el-icon class="el-icon--upload"><upload-filled /></el-icon>
             <div class="el-upload__text">
               拖拽文件到此处或<em>点击上传</em>
@@ -152,64 +111,94 @@
         <el-button type="primary" @click="confirmFileSelection">确认</el-button>
       </template>
     </el-dialog>
+
+    <!-- Download History -->
+    <el-card class="download-history">
+      <div class="history-header">
+        <div class="history-title">
+          <h3>下载历史记录</h3>
+          <div class="history-stats">
+            <span>总下载: {{ userDownloadCount }}</span>
+            <span>成功: {{ userSuccessfulDownloads }}</span>
+            <span>失败: {{ userFailedDownloads }}</span>
+            <el-tag v-if="currentUser" type="info" size="small">
+              用户: {{ currentUser.username || currentUser.userId }}
+            </el-tag>
+          </div>
+        </div>
+        <el-pagination
+          v-model:current-page="historyPagination.pageNum"
+          v-model:page-size="historyPagination.pageSize"
+          :total="historyPagination.total"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+          layout="total, sizes, prev, pager, next, jumper"
+          :page-sizes="[10, 20, 50, 100]"
+          background
+        />
+      </div>
+      
+      <el-table 
+        :data="paginatedHistoryData" 
+        stripe 
+        style="width: 100%"
+        v-loading="historyLoading"
+      >
+        <el-table-column label="成果名称" min-width="200">
+          <template #default="{ row }">
+            {{ getAchievementName(row.achievementId) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="fileSize" label="文件大小" width="120" align="center">
+          <template #default="{ row }">
+            {{ formatFileSize(row.fileSize) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="downloadTime" label="下载时间" width="180" align="center">
+          <template #default="{ row }">
+            {{ formatDownloadTime(row.downloadTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'success' ? 'success' : 'danger'">
+              {{ row.status === 'success' ? '成功' : '失败' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" size="small" @click="handleRedownload(row)">
+              重新下载
+            </el-button>
+            <el-button type="danger" size="small" @click="handleDeleteHistory(row)">
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { 
-  ElMessage, 
-  ElNotification 
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import {
+  ElMessage,
+  ElNotification
 } from 'element-plus'
-import { 
-  DataLine, 
-  View, 
-  Clock, 
-  UploadFilled 
+import {
+  DataLine,
+  View,
+  Clock,
+  UploadFilled
 } from '@element-plus/icons-vue'
+import { queryAllDownloadHistory, deleteDownloadRecordById, downloadAchievements } from '../../api/download'
+import { queryById } from '../../api/achieveInfo'
+import { getUserInfo } from '../../utils/auth'
 
-// Simulated download task structure
-const downloadTasks = ref([
-  {
-    id: 1,
-    fileName: '计算中间件.pdf',
-    fileType: 'PDF文档',
-    fileSize: 4.5 * 1024 * 1024, // 125.4 MB
-    status: 'error',
-    downloadedSize: 56.4 * 1024 * 1024,
-    totalSize: 125.4 * 1024 * 1024,
-    errorMessage: '网络连接中断，请检查网络连接后重试'
-  },
-  {
-    id: 2,
-    fileName: '监控软件.zip',
-    fileType: '压缩包',
-    fileSize: 1.2 * 1024 * 1024, // 1.2 GB
-    status: 'downloading',
-    downloadedSize: 900 * 1024 * 1024,
-    totalSize: 1.2 * 1024 * 1024 * 1024,
-    downloadSpeed: 1.8
-  },
-  {
-    id: 3,
-    fileName: '演示视频.mp4',
-    fileType: '视频文件',
-    fileSize: 125.4 * 1024 * 1024, // 4.5 GB
-    status: 'error',
-    downloadedSize: 675 * 1024 * 1024,
-    totalSize: 4.5 * 1024 * 1024 * 1024,
-    errorMessage: '存储空间不足，请清理磁盘空间后重试'
-  },
-  {
-    id: 4,
-    fileName: '通信中间件.zip',
-    fileType: '压缩包',
-    fileSize: 80 * 1024 * 1024, // 850 MB
-    status: 'paused',
-    downloadedSize: 0,
-    totalSize: 850 * 1024 * 1024
-  }
-])
+// Replace the simulated downloadTasks data with data from localStorage
+const downloadTasks = ref([]);
 
 const selectedTasks = ref([])
 const fileSelectionDialogVisible = ref(false)
@@ -222,24 +211,43 @@ const totalDownloadSpeed = computed(() => {
     .toFixed(1)
 })
 
-const activeDownloads = computed(() => 
+const activeDownloads = computed(() =>
   downloadTasks.value.filter(task => task.status === 'downloading').length
 )
 
-const waitingDownloads = computed(() => 
+const waitingDownloads = computed(() =>
   downloadTasks.value.filter(task => task.status === 'paused').length
 )
 
-const canStartAll = computed(() => 
+const canStartAll = computed(() =>
   downloadTasks.value.some(task => task.status === 'paused')
 )
 
-const canPauseAll = computed(() => 
+const canPauseAll = computed(() =>
   downloadTasks.value.some(task => task.status === 'downloading')
 )
 
+// Add these new refs
+const downloadHistory = ref([])
+const historyLoading = ref(false)
+const historyPagination = ref({
+  pageNum: 1,
+  pageSize: 10,
+  total: 0
+})
+
+// Add current user state
+const currentUser = ref(null)
+
+// 在数据定义部分添加
+const achievementNames = ref({}) // 存储成果ID对应的成果名称的映射
+
 // Utility Functions
 function formatFileSize(bytes) {
+  if (bytes === undefined || bytes === null) {
+    return '-'
+  }
+  
   const units = ['B', 'KB', 'MB', 'GB']
   let size = bytes
   let unitIndex = 0
@@ -253,8 +261,8 @@ function formatFileSize(bytes) {
 }
 
 function calculateProgress(task) {
-  return task.totalSize > 0 
-    ? Math.round((task.downloadedSize / task.totalSize) * 100) 
+  return task.totalSize > 0
+    ? Math.round((task.downloadedSize / task.totalSize) * 100)
     : 0
 }
 
@@ -302,7 +310,7 @@ function handleFileChange(file) {
   console.log('File changed:', file)
 }
 
-function confirmFileSelection() {
+function confirmFileChange() {
   fileSelectionDialogVisible.value = false
   ElMessage.success('文件选择完成')
 }
@@ -322,10 +330,17 @@ function pauseDownload(task) {
 }
 
 function deleteDownload(task) {
-  const index = downloadTasks.value.findIndex(t => t.id === task.id)
+  const activeTasks = JSON.parse(localStorage.getItem('activeTasks') || '[]');
+  const index = activeTasks.findIndex(t => t.id === task.id);
+  
   if (index !== -1) {
-    downloadTasks.value.splice(index, 1)
-    ElMessage.info(`已删除：${task.fileName}`)
+    activeTasks.splice(index, 1);
+    localStorage.setItem('activeTasks', JSON.stringify(activeTasks));
+    
+    // 重新加载任务列表
+    loadActiveTasks();
+    
+    ElMessage.info(`已删除：${task.fileName}`);
   }
 }
 
@@ -347,6 +362,153 @@ function pauseAllDownloads() {
   ElMessage.warning('已暂停所有下载任务')
 }
 
+// Update the loadDownloadHistory function to filter by userId
+async function loadDownloadHistory() {
+  try {
+    historyLoading.value = true;
+    // Get current user info
+    const userIdStr = localStorage.getItem('userId');
+    const userId = userIdStr ? parseInt(userIdStr, 10) : null; 
+    console.log('【前端】当前用户ID类型：', typeof userId);   
+    
+    const res = await queryAllDownloadHistory();
+    console.log('【前端】下载历史查询成功：', res);
+    
+    let allRecords = [];
+    
+    // Check if the response has a data property or if it's the data directly
+    if (res.data && Array.isArray(res.data)) {
+      allRecords = res.data;
+    } else if (Array.isArray(res)) {
+      allRecords = res;
+    }
+    
+    // Filter records by userId if available
+    if (userId) {
+      downloadHistory.value = allRecords.filter(record => record.userId === userId);
+      console.log(`【前端】已过滤用户ID为 ${userId} 的下载历史:`, downloadHistory.value);
+    } else {
+      downloadHistory.value = allRecords;
+      console.log('【前端】无用户ID，显示所有下载历史');
+    }
+    
+    // Update total count for pagination
+    historyPagination.value.total = downloadHistory.value.length;
+    
+    // 获取所有记录中的成果名称
+    await fetchAchievementNames();
+    
+  } catch (error) {
+    console.error('加载下载历史失败:', error);
+    ElMessage.error('加载下载历史失败');
+    downloadHistory.value = [];
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
+// Modify pagination handlers to filter data client-side instead of server-side
+function handlePageChange(currentPage) {
+  historyPagination.value.pageNum = currentPage;
+  // No need to reload data, just update the page
+}
+
+function handleSizeChange(size) {
+  historyPagination.value.pageSize = size;
+  historyPagination.value.pageNum = 1; // Reset to first page when changing page size
+  // No need to reload data, just update the page size
+}
+
+// Add a computed property to handle client-side pagination
+const paginatedHistoryData = computed(() => {
+  const start = (historyPagination.value.pageNum - 1) * historyPagination.value.pageSize;
+  const end = start + historyPagination.value.pageSize;
+  return downloadHistory.value.slice(start, end);
+});
+
+// Add this new method to format the download time
+function formatDownloadTime(timestamp) {
+  if (!timestamp) return '-'
+  const date = new Date(timestamp)
+  return date.toISOString().split('T')[0]
+}
+
+// Add computed properties for user-specific statistics
+const userDownloadCount = computed(() => {
+  return downloadHistory.value.length;
+})
+
+const userSuccessfulDownloads = computed(() => {
+  return downloadHistory.value.filter(record => record.status === 'success').length;
+})
+
+const userFailedDownloads = computed(() => {
+  return downloadHistory.value.filter(record => record.status !== 'success').length;
+})
+
+// 添加获取成果名称的方法
+async function fetchAchievementNames() {
+  try {
+    // 收集所有不重复的成果ID
+    const achievementIds = [...new Set(downloadHistory.value.map(record => record.achievementId))];
+    
+    // 为每个成果ID获取详细信息
+    for (const id of achievementIds) {
+      if (id) {
+        const result = await queryById(id);
+        if (result ) {
+          // 保存成果名称到映射对象
+          achievementNames.value[id] = result.achievementName || '未知成果';
+        }
+      }
+    }
+    
+    console.log('【前端】获取到的成果名称映射:', achievementNames.value);
+  } catch (error) {
+    console.error('获取成果名称失败:', error);
+  }
+}
+
+// 添加获取成果名称的方法
+function getAchievementName(achievementId) {
+  return achievementNames.value[achievementId] || `成果ID: ${achievementId}`;
+}
+
+// Add these new methods
+function handleRedownload(row) {
+  downloadAchievements(row.fileName, row.achievementId);
+  ElMessage.success('已开始重新下载');
+}
+
+async function handleDeleteHistory(row) {
+  try {
+    const response = await deleteDownloadRecordById(row.achievementId);
+    console.log('【前端】成果ID ：', row.achievementId);
+    if (response) {
+      ElMessage.success('下载记录删除成功');
+      // Refresh the history list
+      await loadDownloadHistory();
+    } else {
+      ElMessage.error('删除下载记录失败');
+    }
+  } catch (error) {
+    console.error('删除下载记录失败:', error);
+    ElMessage.error('删除下载记录失败: ' + (error.message || '服务器错误'));
+  }
+}
+
+// 添加加载活动下载任务的方法
+function loadActiveTasks() {
+  try {
+    const tasks = JSON.parse(localStorage.getItem('activeTasks') || '[]');
+    downloadTasks.value = tasks;
+    console.log('【前端】加载活动下载任务：', downloadTasks.value);
+  } catch (error) {
+    console.error('加载活动下载任务失败:', error);
+    downloadTasks.value = [];
+  }
+}
+
 onMounted(() => {
   // Initialization logic
   ElNotification({
@@ -354,6 +516,20 @@ onMounted(() => {
     message: '下载管理器已准备就绪',
     type: 'success'
   })
+  
+  // 加载活动下载任务
+  loadActiveTasks();
+  
+  // 加载下载历史
+  loadDownloadHistory();
+  
+  // 添加事件监听，当下载任务更新时刷新列表
+  window.addEventListener('download-tasks-updated', loadActiveTasks);
+})
+
+// 确保在组件卸载时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('download-tasks-updated', loadActiveTasks);
 })
 </script>
 
@@ -392,6 +568,35 @@ onMounted(() => {
   .action-buttons {
     display: flex;
     gap: 10px;
+  }
+
+  .download-history {
+    margin-top: 20px;
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      
+      .history-title {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        
+        h3 {
+          margin: 0;
+        }
+        
+        .history-stats {
+          display: flex;
+          gap: 15px;
+          align-items: center;
+          font-size: 0.9rem;
+          color: #606266;
+        }
+      }
+    }
   }
 }
 </style>

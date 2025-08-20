@@ -20,6 +20,7 @@ const routes = [
     path: '/home',
     name: '系统信息',
     component: () => import('@renderer/views/home/Home.vue'),
+    redirect: '/home/dash',
     iconClass: 'fa fa-users',
     children: [{
         path: '/home/dash',
@@ -32,9 +33,9 @@ const routes = [
     path: '/publish',
     name: '成果上传',
     iconClass: 'fa fa-cloud-upload',
-    component: () => import('@renderer/views/home/Home.vue'),
-    
+    component: () => import('@renderer/views/home/Home.vue'),  
     children: [
+      
       {
         path: '/publish/myAch',
         name: '我的成果',
@@ -48,11 +49,18 @@ const routes = [
         component: () => import('@renderer/components/publish/My_Complaint.vue')
       },
       {
+        path: '/publish/chooseTemplate',
+        name: '模板选择',
+        iconClass: 'fa fa-upload',
+        component: () => import('@renderer/components/publish/Template.vue')
+      },
+      {
         path: '/publish/info',
         name: '成果信息',
         iconClass: 'fa fa-upload',
         component: () => import('@renderer/components/publish/Ach_info.vue')
       },
+      
       {
         path: '/publish/upload',
         name: '成果选择',
@@ -133,12 +141,12 @@ const routes = [
         iconClass: 'fa fa-line-chart',
         component: () => import('@renderer/components/application/Download.vue')
     },
-    {
-      path: '/home/history',
-      name: '下载历史',
-      iconClass: 'fa fa-line-chart',
-      component: () => import('@renderer/components/application/History.vue')
-    },
+    // {
+    //   path: '/home/history',
+    //   name: '下载历史',
+    //   iconClass: 'fa fa-line-chart',
+    //   component: () => import('@renderer/components/application/History.vue')
+    // },
     {
       path: '/home/settings',
       name: '应用设置',

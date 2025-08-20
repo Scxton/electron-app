@@ -32,7 +32,7 @@
           <div class="achievement-stats">
             <div class="stat-item">
               <i class="el-icon-view"></i>
-              <span>{{ achievement.views }} 浏览</span>
+              <span>{{ achievement.views }} 次下载</span>
             </div>
             <div class="stat-item">
               <i class="el-icon-star-on"></i>

@@ -3,20 +3,16 @@
     <div class="form-container">
       <div class="clear-button-container">
         <el-button type="warning" @click="clearForm">
-          <el-icon><Delete /></el-icon>
+          <el-icon>
+            <Delete />
+          </el-icon>
           清除所有信息
         </el-button>
       </div>
 
       <h2 class="section-title">填写成果基本信息</h2>
 
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="rules"
-        label-position="top"
-        @submit.prevent
-      >
+      <el-form ref="formRef" :model="formData" :rules="rules" label-position="top" @submit.prevent>
         <!-- 成果名称 -->
         <el-form-item label="成果名称" prop="title" required>
           <el-input v-model="formData.title" placeholder="请输入成果名称"></el-input>
@@ -27,24 +23,15 @@
           <el-col :span="12">
             <el-form-item label="成果类型" prop="type" required>
               <el-select v-model="formData.type" placeholder="请选择成果类型" class="w-100">
-                <el-option
-                  v-for="item in achievementTypes"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                ></el-option>
+                <el-option v-for="item in achievementTypes" :key="item.value" :label="item.label"
+                  :value="item.value"></el-option>
               </el-select>
             </el-form-item>
           </el-col>
-          
+
           <el-col :span="12">
             <el-form-item label="文件数量" prop="fileCount" required>
-              <el-input-number 
-                v-model="formData.fileCount" 
-                :min="1" 
-                :max="10" 
-                class="w-100"
-              ></el-input-number>
+              <el-input-number v-model="formData.fileCount" :min="1" :max="10" class="w-100"></el-input-number>
             </el-form-item>
           </el-col>
         </el-row>
@@ -53,33 +40,17 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="课题分类" prop="category" required>
-              <el-select 
-                v-model="formData.category" 
-                placeholder="请选择课题分类" 
-                class="w-100"
-              >
-                <el-option
-                  v-for="item in categoryTypes"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                ></el-option>
+              <el-select v-model="formData.category" placeholder="请选择课题分类" class="w-100">
+                <el-option v-for="item in categoryTypes" :key="item.value" :label="item.label"
+                  :value="item.value"></el-option>
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="技术分类" prop="techType" required>
-              <el-select 
-                v-model="formData.techType" 
-                placeholder="请选择技术分类" 
-                class="w-100"
-              >
-                <el-option
-                  v-for="item in techTypes"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                ></el-option>
+              <el-select v-model="formData.techType" placeholder="请选择技术分类" class="w-100">
+                <el-option v-for="item in techTypes" :key="item.value" :label="item.label"
+                  :value="item.value"></el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -87,25 +58,14 @@
 
         <!-- 成果简介 -->
         <el-form-item label="成果简介" prop="description" required>
-          <el-input
-            v-model="formData.description"
-            type="textarea"
-            :rows="4"
-            placeholder="请简要描述您的成果内容"
-            :maxlength="500"
-            show-word-limit
-          ></el-input>
+          <el-input v-model="formData.description" type="textarea" :rows="4" placeholder="请简要描述您的成果内容" :maxlength="500"
+            show-word-limit></el-input>
           <div class="form-tip">建议字数在500字以内</div>
         </el-form-item>
 
         <!-- 成果亮点 -->
         <el-form-item label="关键词" prop="highlights">
-          <el-input
-            v-model="formData.highlights"
-            type="textarea"
-            :rows="4"
-            placeholder="请输出和成果相关的关键词，用逗号隔开"
-          ></el-input>
+          <el-input v-model="formData.highlights" type="textarea" :rows="4" placeholder="请输出和成果相关的关键词，用逗号隔开"></el-input>
         </el-form-item>
         <el-form-item label="版本号" prop="version">
           <el-input v-model="formData.version" placeholder="请输入版本号"></el-input>
@@ -115,18 +75,9 @@
         <el-row :gutter="20">
           <el-col :span="24">
             <el-form-item label="所属组织" prop="achievementBelongingOrganization" required>
-              <el-select 
-                v-model="formData.achievementBelongingOrganization" 
-                placeholder="请选择所属组织"
-                class="w-100"
-                value-key="id"
-              >
-                <el-option
-                  v-for="org in organizations"
-                  :key="org.id"
-                  :label="org.name"
-                  :value="org"
-                ></el-option>
+              <el-select v-model="formData.achievementBelongingOrganization" placeholder="请选择所属组织" class="w-100"
+                value-key="id">
+                <el-option v-for="org in organizations" :key="org.id" :label="org.name" :value="org"></el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -135,18 +86,9 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="项目" prop="projectId">
-              <el-select
-                v-model="formData.projectId"
-                placeholder="请选择项目"
-                class="w-100"
-                clearable
-              >
-                <el-option
-                  v-for="project in projects"
-                  :key="project.projectId"
-                  :label="project.projectName"
-                  :value="project.projectId"
-                ></el-option>
+              <el-select v-model="formData.projectId" placeholder="请选择项目" class="w-100" clearable>
+                <el-option v-for="project in projects" :key="project.projectId" :label="project.projectName"
+                  :value="project.projectId"></el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -225,7 +167,7 @@ const formData = reactive({
   category: '',
   techType: ''
 })
-console.log("formData-Ach_info",formData)
+console.log("formData-Ach_info", formData)
 // 表单验证规则
 const rules = {
   title: [
@@ -258,11 +200,11 @@ const confirmForm = async () => {
       try {
         // 保存表单数据到 localStorage，但不提交到服务器
         localStorage.setItem('Ach_info', JSON.stringify(formData))
-        console.log("formData-Ach_info",formData)
-        
+        console.log("formData-Ach_info", formData)
+
         // 直接跳转到文件上传页面
         router.push('/publish/upload')
-        
+
         ElMessage.success('请选择要上传的文件')
       } catch (error) {
         console.error('Validation Error:', error)
@@ -278,7 +220,7 @@ const confirmForm = async () => {
 const saveDraft = () => {
   localStorage.setItem('draftFormData', JSON.stringify(formData))
   ElMessage.success('草稿已保存，您可以稍后继续编辑')
-  
+
 }
 
 // 添加加载保存的数据的方法
@@ -295,13 +237,13 @@ const loadSavedData = () => {
 const fetchOrganizations = async () => {
   try {
     const response = await getAllOrganizations()
-     if (Array.isArray(response)) {
-            organizations.value = response.map(item => ({
-                id: item.organizationId,
-                name: item.organizationName,
-            }));
-      console.log("organizations",organizations.value)
-     }
+    if (Array.isArray(response)) {
+      organizations.value = response.map(item => ({
+        id: item.organizationId,
+        name: item.organizationName,
+      }));
+      console.log("organizations", organizations.value)
+    }
   } catch (error) {
     console.error('Failed to fetch organizations:', error)
     ElMessage.error('获取组织列表失败')
@@ -314,7 +256,7 @@ const projects = ref([])
 const fetchProjects = async () => {
   try {
     const response = await getAllProjects()
-    console.log("project response",response)
+    console.log("project response", response)
     if (response) {
       projects.value = response.map(item => ({
         projectId: item.projectId,
@@ -338,7 +280,7 @@ onMounted(() => {
   // 新增：从路由参数中获取并填充数据
   const route = useRoute()
   console.log('Route query:', route.query) // 调试信息
-  
+
   if (route.query.id) {
     console.log('Filling form data from route query') // 调试信息
     formData.title = route.query.title || ''
@@ -354,13 +296,13 @@ onMounted(() => {
     formData.techType = route.query.techType || ''
     formData.highlights = route.query.highlights || ''
     formData.fileCount = route.query.fileCount || 1
-    
+
     // 调试信息：打印填充后的表单数据
     console.log('Form data after filling:', JSON.parse(JSON.stringify(formData)))
   } else {
     console.log('No route query id found') // 调试信息
   }
-  
+
   // 调试信息：打印当前的组织和项目数据
   nextTick(() => {
     console.log('Organizations:', organizations.value)
@@ -560,15 +502,15 @@ const clearForm = () => {
     padding: 8px;
     align-items: flex-start;
   }
-  
+
   .form-container {
     padding: 14px;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
-  
+
   :deep(.el-button) {
     width: 100%;
     margin-left: 0 !important;
@@ -581,7 +523,7 @@ const clearForm = () => {
   .container {
     padding: 16px 24px;
   }
-  
+
   .form-container {
     padding: 22px 26px;
     max-width: 900px;
@@ -594,7 +536,7 @@ const clearForm = () => {
   .container {
     max-width: 1200px;
   }
-  
+
   .form-container {
     max-width: 1000px;
   }

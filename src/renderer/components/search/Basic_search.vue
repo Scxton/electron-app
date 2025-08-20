@@ -76,7 +76,7 @@
                         <span class="sort-label">排序方式</span>
                         <select v-model="sortBy" class="sort-select" @change="handleSort">
                             <option value="newest">最新</option>
-                            <option value="views">浏览量</option>
+                            <option value="views">下载量</option>
                         </select>
                         <span class="sort-label ml-15">每页显示</span>
                         <select v-model="pageSize" class="sort-select" @change="handlePageSizeChange">
@@ -139,13 +139,13 @@
                                         </span>
                                         <span class="meta-item">
                                             <i class="far fa-eye"></i>
-                                            {{ item.views }} 次浏览
+                                            {{ item.views }} 次下载
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             <div class="column-type">
-                                <span class="type-tag">{{ item.type }}</span>
+                                <span class="type-tag">{{ getTypeChineseName(item.type) }}</span>
                             </div>
                             <div class="column-version">{{ item.version || '-' }}</div>
                             <div class="column-author">{{ item.author }}</div>
@@ -155,10 +155,6 @@
                                 <button class="action-btn download" @click="handleDownload(item)">
                                     <i class="fas fa-download"></i>
                                     下载
-                                </button>
-                                <button class="action-btn favorite" @click="handleFavorite(item)">
-                                    <i class="far fa-star"></i>
-                                    收藏
                                 </button>
                             </div>
                         </div>
@@ -210,7 +206,7 @@
                     <div class="download-path">
                         <input type="text" v-model="downloadPath" class="path-input" readonly>
                         <button class="browse-btn" @click="browseDownloadPath">
-                            <i class="fas fa-folder-open"></i> 浏览
+                            <i class="fas fa-folder-open"></i> 下载
                         </button>
                     </div>
                     <div class="file-list" v-if="downloadItems.length > 0">
@@ -240,7 +236,9 @@ import { fuzzySearchAchievements, preciseSearchAchievements } from '../../api/se
 import { submitDownloadForm, downloadAchievements } from '../../api/download';
 import emitter from '../../utils/eventBus';
 import { useRoute, useRouter } from 'vue-router';
-
+import { ElMessage } from 'element-plus';
+import { queryById } from '../../api/achieveInfo';
+import { getProjectById } from '../../api/project';
 const route = useRoute();
 const router = useRouter();
 
@@ -278,7 +276,7 @@ const topics = ref([
 const resultTypes = ref([
     { id: 1, name: '论文', value: 'paper' },
     { id: 2, name: '专利', value: 'patent' },
-    { id: 3, name: '项目', value: 'project' },
+    { id: 3, name: '科研项目', value: 'project' },
     { id: 4, name: '技术报告', value: 'report' }
 ]);
 
@@ -352,23 +350,57 @@ const handleSearch = async () => {
             keywords: [searchQuery.value]
         }
         console.log("handleSearch searchbody",searchbody)
-        console.log("searchbody",typeof searchbody.keyword)
         response = await fuzzySearchAchievements(searchbody);
 
         console.log('搜索结果:', response);
 
         if (Array.isArray(response)) {
-            allResults.value = response.map(item => ({
-                id: item.achievementId,
-                title: item.achievementName,
-                type: item.achievementCategory?.toLowerCase(),
-                author: item.userId,
-                project: item.projectId,
-                organization: item.organizationName,
-                description: item.achievementIntro,
-                uploadDate: item.uploadTime?.substring(0, 10) || '',
-                views: item.searchCount || 0
+            // 获取所有成果的详细信息
+            const detailedResults = await Promise.all(response.map(async item => {
+                try {
+                    const detail = await queryById(item.achievementId);
+                    let projectName = item.projectId;
+                    // 如果projectId存在，尝试获取项目名称
+                    if (item.projectId) {
+                        try {
+                            const companyInfo = await getProjectById(item.projectId);
+                            projectName = companyInfo.projectName || item.projectId;
+                        } catch (error) {
+                            console.error(`获取项目${item.projectId}信息失败:`, error);
+                        }
+                    }
+                    console.log("detail",detail)
+                    return {
+                        id: item.achievementId,
+                        title: item.achievementName,
+                        type: item.achievementCategory?.toLowerCase(),
+                        version: item.achievementVersion,
+                        author: detail.userName || item.userName,
+                        project: projectName, // 使用获取到的项目名称
+                        organization: detail.organizationName || item.organizationName,
+                        description: item.achievementIntro,
+                        uploadDate: item.uploadTime?.substring(0, 10) || '',
+                        views: item.achievementDownloadCount || 0
+                    };
+                } catch (error) {
+                    console.error(`获取成果${item.achievementId}详情失败:`, error);
+                    return {
+                        id: item.achievementId,
+                        title: item.achievementName,
+                        type: item.achievementCategory?.toLowerCase(),
+                        version: item.achievementVersion,
+                        author: item.userName,
+                        project: item.projectId,
+                        organization: item.organizationName,
+                        description: item.achievementIntro,
+                        uploadDate: item.uploadTime?.substring(0, 10) || '',
+                        views: item.achievementDownloadCount || 0
+                    };
+                }
             }));
+
+            allResults.value = detailedResults;
+            console.log("allResults basic", allResults.value);
             filterResults();
             handleSort();
         } else {
@@ -419,14 +451,18 @@ const handleBatchDownload = async () => {
     showDownloadDialog.value = true;
 };
 
-// 浏览下载路径
+// 修改 browseDownloadPath 函数
 const browseDownloadPath = async () => {
     try {
-        // 导入Electron的dialog模块
-        const { dialog } = require('@electron/remote');
+        // 检查是否有 electron 对象
+        if (!window.electron) {
+            console.error('Electron API 不可用');
+            ElMessage.warning('在此环境中无法选择文件夹，请手动输入路径');
+            return;
+        }
         
-        // 打开文件夹选择对话框
-        const result = await dialog.showOpenDialog({
+        // 使用预先暴露的 API
+        const result = await window.electron.showOpenDialog({
             properties: ['openDirectory'],
             title: '选择下载文件夹',
             defaultPath: downloadPath.value || 'C:/data/download/'
@@ -442,7 +478,7 @@ const browseDownloadPath = async () => {
         }
     } catch (error) {
         console.error('打开文件夹选择对话框时出错:', error);
-        alert('无法打开文件夹选择对话框，请稍后重试');
+        ElMessage.warning('无法打开文件夹选择对话框，请手动输入路径');
     }
 };
 
@@ -459,9 +495,8 @@ const confirmDownload = async () => {
         showDownloadDialog.value = false;
         console.log(`确认下载到路径: ${downloadPath.value}`);
         
-        // 默认用户ID为1
-        const userId = 1;
-        
+        const userIdStr = localStorage.getItem('userId');
+        const userId = userIdStr ? parseInt(userIdStr, 10) : null; 
         if (currentDownloadType.value === 'single') {
             // 单个文件下载
             const achievementIds = [downloadItems.value[0].id];
@@ -473,13 +508,15 @@ const confirmDownload = async () => {
             
             if (fileNames && Array.isArray(fileNames) && fileNames.length > 0) {
                 // 第二步：执行文件下载
-                await downloadAndSaveFile(fileNames);
+                const success = await downloadAndSaveFile(fileNames);
                 console.log('单个成果下载完成');
                 // 显示成功消息
-                alert('下载成功！文件已保存到: ' + downloadPath.value);
+                // if (success) {
+                //     ElMessage.success(`下载成功！文件已开始下载`);
+                // }
             } else {
                 console.error('下载表单提交失败: 未返回有效的文件名');
-                alert('下载失败: 服务器未返回有效的文件名');
+                ElMessage.error('下载失败: 服务器未返回有效的文件名');
             }
         } else {
             // 批量下载
@@ -492,18 +529,20 @@ const confirmDownload = async () => {
             
             if (fileNames && Array.isArray(fileNames) && fileNames.length > 0) {
                 // 第二步：执行文件下载
-                await downloadAndSaveFile(fileNames);
+                const success = await downloadAndSaveFile(fileNames);
                 console.log('批量下载完成');
                 // 显示成功消息
-                alert('批量下载成功！文件已保存到: ' + downloadPath.value);
+                if (success) {
+                    ElMessage.success(`批量下载成功！文件已开始下载`);
+                }
             } else {
                 console.error('批量下载表单提交失败: 未返回有效的文件名');
-                alert('批量下载失败: 服务器未返回有效的文件名');
+                ElMessage.error('批量下载失败: 服务器未返回有效的文件名');
             }
         }
     } catch (error) {
         console.error('下载过程发生错误:', error);
-        alert('下载失败，请稍后重试');
+        ElMessage.error('下载失败，请稍后重试');
     } finally {
         // 清理下载项
         downloadItems.value = [];
@@ -517,40 +556,45 @@ const downloadAndSaveFile = async (fileNames) => {
         console.log('下载路径:', downloadPath.value);
         
         // 调用下载API
-        const response = await downloadAchievements(fileNames);
+        const response = await downloadAchievements(fileNames, [], downloadPath.value);
         console.log('下载API响应类型:', response);
         
         // 创建Blob对象
-        const blob = new Blob([response], { type: response.type });
-        
-        // 创建下载链接
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
+        const blob = new Blob([response], { type: response.type || 'application/octet-stream' });
         
         // 设置文件名 - 单个文件使用原文件名，多个文件使用时间戳命名的zip
+        let fileName;
         if (fileNames.length === 1) {
-            link.download = fileNames[0];
+            fileName = fileNames[0];
         } else {
             const now = new Date();
             const timestamp = now.toISOString().replace(/[:.]/g, '-').substring(0, 19);
-            link.download = `批量下载_${timestamp}.zip`;
+            fileName = `批量下载_${timestamp}.zip`;
         }
         
-        console.log('设置下载文件名:', link.download);
-        
-        // 触发下载
+        // 使用更隐蔽的方式下载文件
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none'; // 隐藏链接元素
         document.body.appendChild(link);
+        
+        // 模拟点击但不触发可见的系统对话框
         link.click();
         
-        // 清理
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(link);
+        // 延迟一段时间后移除链接（确保下载开始）
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(link);
+        }, 100);
         
         console.log('文件下载完成');
+        return true; // 返回成功状态
     } catch (error) {
         console.error('文件下载和保存过程出错:', error);
-        throw error; // 向上传递错误
+        ElMessage.error('下载失败，请稍后重试');
+        throw error;
     }
 };
 
@@ -767,7 +811,7 @@ const handleAdvancedSearch = async (params) => {
 };
 
 // 修改处理搜索结果的函数，添加优先类型标记
-const processSearchResults = (response) => {
+const processSearchResults = async (response) => {
     console.log("response_search", response);
     if (Array.isArray(response)){
         const filteredResults = response.filter(item => {
@@ -775,23 +819,67 @@ const processSearchResults = (response) => {
             if (!selectedTypes.value.length) return true
             return selectedTypes.value.includes(itemType)
         });
-        
-        searchResults.value = filteredResults.map(item => ({
-            id: item.achievementId,
-            title: item.achievementName,
-            type: item.achievementCategory?.toLowerCase(),
-            version: item.achievementVersion,
-            author: item.userId,
-            project: item.projectId,
-            organization: item.organizationName,
-            description: item.achievementIntro,
-            uploadDate: item.uploadTime?.substring(0, 10) || '',
-            views: item.searchCount || 0,
-            isPriority: item.achievementCategory?.toLowerCase() === priorityType.value
+
+        // 获取所有成果的详细信息
+        const detailedResults = await Promise.all(filteredResults.map(async item => {
+            try {
+                const detail = await queryById(item.achievementId);
+                let projectName = item.projectId;
+                // 如果projectId存在，尝试获取项目名称
+                if (item.projectId) {
+                    try {
+                        const projectInfo = await getProjectById(item.projectId);
+                        projectName = projectInfo.projectName || item.projectId;
+                    } catch (error) {
+                        console.error(`获取项目${item.projectId}信息失败:`, error);
+                    }
+                }
+                return {
+                    id: item.achievementId,
+                    title: item.achievementName,
+                    type: getTypeChineseName(item.achievementCategory?.toLowerCase()),
+                    version: item.achievementVersion,
+                    author: detail.userName || item.userName,
+                    project: projectName,
+                    organization: detail.organizationName || item.organizationName,
+                    description: item.achievementIntro,
+                    uploadDate: item.uploadTime?.substring(0, 10) || '',
+                    views: item.achievementDownloadCount || 0,
+                    isPriority: item.achievementCategory?.toLowerCase() === priorityType.value
+                };
+            } catch (error) {
+                console.error(`获取成果${item.achievementId}详情失败:`, error);
+                return {
+                    id: item.achievementId,
+                    title: item.achievementName,
+                    type: getTypeChineseName(item.achievementCategory?.toLowerCase()),
+                    version: item.achievementVersion,
+                    author: item.userName,
+                    project: item.projectId,
+                    organization: item.organizationName,
+                    description: item.achievementIntro,
+                    uploadDate: item.uploadTime?.substring(0, 10) || '',
+                    views: item.achievementDownloadCount || 0,
+                    isPriority: item.achievementCategory?.toLowerCase() === priorityType.value
+                };
+            }
         }));
         
+        searchResults.value = detailedResults;
+        console.log("allResults 1", allResults.value);
         currentPage.value = 1;
         handleSort();
+    }
+};
+
+// Add this helper function
+const getTypeChineseName = (type) => {
+    switch(type) {
+        case 'paper': return '论文';
+        case 'patent': return '专利';
+        case 'project': return '科研项目';
+        case 'report': return '技术报告';
+        default: return type;
     }
 };
 
@@ -1153,10 +1241,6 @@ const navigateToDetail = (item) => {
 
 .action-btn.download {
     color: #4a90e2;
-}
-
-.action-btn.favorite {
-    color: #f0ad4e;
 }
 
 .batch-download-btn {

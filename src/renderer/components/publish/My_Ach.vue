@@ -86,7 +86,12 @@
           </div>
         </div>
         <div class="card-actions">
-          <button class="update-btn" @click="showUpdateDialog(achievement)">
+          <button 
+            class="update-btn" 
+            @click="showUpdateDialog(achievement)"
+            :disabled="achievement.auditFlag == 0"
+            :class="{ 'disabled-btn': achievement.auditFlag == 0 }"
+          >
             <i class="fas fa-arrow-up"></i> 更新版本
           </button>
         </div>
@@ -119,7 +124,12 @@
         <div class="list-cell">{{ achievement.achievementDownloadCount }}</div>
         <div class="list-cell">{{ formatDate(achievement.uploadTime) }}</div>
         <div class="list-cell actions">
-          <button class="update-btn" @click="showUpdateDialog(achievement)">
+          <button 
+            class="update-btn" 
+            @click="showUpdateDialog(achievement)"
+            :disabled="achievement.auditFlag == 0"
+            :class="{ 'disabled-btn': achievement.auditFlag == 0 }"
+          >
             更新版本
           </button>
         </div>
@@ -1516,5 +1526,19 @@ export default {
 
 .download-btn i {
   font-size: 12px;
+}
+
+.disabled-btn {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  background-color: #f5f5f5 !important;
+  color: #999 !important;
+  border-color: #ddd !important;
+}
+
+.disabled-btn:hover {
+  background-color: #f5f5f5 !important;
+  color: #999 !important;
+  border-color: #ddd !important;
 }
 </style>

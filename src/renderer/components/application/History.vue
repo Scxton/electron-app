@@ -15,28 +15,20 @@
     <!-- 筛选区域 -->
     <el-row class="filter-container" :gutter="20">
       <el-col :span="6">
-        <el-input 
-          v-model="searchFileName" 
-          placeholder="按文件名称搜索" 
-          clearable
-        >
+        <el-input v-model="searchFileName" placeholder="按文件名称搜索" clearable>
           <template #prefix>
-            <el-icon><Search /></el-icon>
+            <el-icon>
+              <Search />
+            </el-icon>
           </template>
         </el-input>
       </el-col>
-      
+
       <el-col :span="6">
-        <el-date-picker
-          v-model="downloadTimeRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          value-format="YYYY-MM-DD"
-        />
+        <el-date-picker v-model="downloadTimeRange" type="daterange" range-separator="至" start-placeholder="开始日期"
+          end-placeholder="结束日期" value-format="YYYY-MM-DD" />
       </el-col>
-      
+
       <el-col :span="4">
         <el-select v-model="fileStatus" placeholder="文件状态" clearable>
           <el-option label="下载状态" value="" />
@@ -45,7 +37,7 @@
           <el-option label="已过期" value="expired" />
         </el-select>
       </el-col>
-      
+
       <el-col :span="4">
         <el-select v-model="fileType" placeholder="文件类型" clearable>
           <el-option label="文件类型" value="" />
@@ -58,28 +50,22 @@
 
       <el-col :span="4">
         <el-button type="primary" @click="searchDownloadHistory">
-          <el-icon><Search /></el-icon>搜索
+          <el-icon>
+            <Search />
+          </el-icon>搜索
         </el-button>
         <el-button @click="resetFilters">重置</el-button>
       </el-col>
     </el-row>
 
     <!-- 下载历史表格 -->
-    <el-table 
-      :data="filteredDownloadHistory" 
-      stripe 
-      class="download-history-table"
-      max-height="500"
-    >
+    <el-table :data="filteredDownloadHistory" stripe class="download-history-table" max-height="500">
       <el-table-column prop="fileName" label="文件名称" sortable />
       <el-table-column prop="downloadTime" label="下载时间" sortable />
       <el-table-column prop="fileSize" label="文件大小" />
       <el-table-column label="状态" align="center">
         <template #default="scope">
-          <el-tag 
-            :type="getStatusType(scope.row.status)" 
-            disable-transitions
-          >
+          <el-tag :type="getStatusType(scope.row.status)" disable-transitions>
             {{ getStatusLabel(scope.row.status) }}
           </el-tag>
         </template>
@@ -87,33 +73,34 @@
       <el-table-column label="操作" align="center">
         <template #default="scope">
           <el-button-group>
-            <el-button 
-              type="primary" 
-              size="small" 
-              @click="redownloadFile(scope.row)"
-            >重新下载</el-button>
-            <el-button 
-              type="danger" 
-              size="small" 
-              @click="deleteRecord(scope.row)"
-            >删除记录</el-button>
+            <el-button type="primary" size="small" @click="redownloadFile(scope.row)">重新下载</el-button>
+            <el-button type="danger" size="small" @click="deleteRecord(scope.row)">删除记录</el-button>
           </el-button-group>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 分页 -->
-    <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="totalRecords"
-        layout="total, sizes, prev, pager, next"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        background
-      />
+    <!-- <div class="pagination-container">
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="totalRecords"
+        layout="total, sizes, prev, pager, next" @size-change="handleSizeChange" @current-change="handleCurrentChange"
+        background />
+    </div> -->
+
+    <div class="pagination">
+      <span>每页显示:</span>
+      <select v-model="pageSize">
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+      </select>
+      <div class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</div>
+      <div class="page-controls">
+        <button @click="prevPage" :disabled="currentPage === 1">上一页</button>
+        <button @click="nextPage" :disabled="currentPage === totalPages">下一页</button>
+      </div>
     </div>
+
   </div>
 </template>
 
@@ -155,21 +142,29 @@ const fileType = ref('')
 // 分页
 const currentPage = ref(1)
 const pageSize = ref(10)
-const totalRecords = ref(downloadHistory.value.length)
+// const totalRecords = ref(downloadHistory.value.length)
+
+const totalPages = computed(() => {
+  return Math.ceil(downloadHistory.value.length / pageSize.value) || 1
+})
+
+// const totalPages = computed(() => {
+//   return Math.ceil(downloadHistory.value.length / pageSize.value) || 1;
+// });
 
 // 过滤下载历史
 const filteredDownloadHistory = computed(() => {
   return downloadHistory.value.filter(item => {
-    const matchFileName = !searchFileName.value || 
+    const matchFileName = !searchFileName.value ||
       item.fileName.includes(searchFileName.value)
-    
-    const matchTimeRange = !downloadTimeRange.value || 
-      (item.downloadTime >= downloadTimeRange.value[0] && 
-       item.downloadTime <= downloadTimeRange.value[1])
-    
-    const matchStatus = !fileStatus.value || 
+
+    const matchTimeRange = !downloadTimeRange.value ||
+      (item.downloadTime >= downloadTimeRange.value[0] &&
+        item.downloadTime <= downloadTimeRange.value[1])
+
+    const matchStatus = !fileStatus.value ||
       item.status === fileStatus.value
-    
+
     // 这里可以根据文件类型扩展匹配逻辑
     const matchFileType = true
 
@@ -251,13 +246,25 @@ const deleteRecord = (row) => {
 }
 
 // 分页事件处理
-const handleSizeChange = (val) => {
-  pageSize.value = val
-}
+// const handleSizeChange = (val) => {
+//   pageSize.value = val
+// }
 
-const handleCurrentChange = (val) => {
-  currentPage.value = val
-}
+// const handleCurrentChange = (val) => {
+//   currentPage.value = val
+// }
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+};
 
 onMounted(() => {
   // 可以在这里调用后端 API 获取初始数据
@@ -306,9 +313,40 @@ onMounted(() => {
   width: 100%;
 }
 
-.pagination-container {
+/* .pagination-container {
   display: flex;
   justify-content: flex-end;
   margin-top: 20px;
+} */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.pagination select {
+  margin: 0 10px;
+  padding: 5px;
+}
+
+
+.page-info {
+  margin: 0 15px;
+}
+
+.page-controls button {
+  padding: 5px 10px;
+  margin-left: 5px;
+  background-color: #f4f4f5;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.page-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 </style>
