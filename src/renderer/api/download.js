@@ -208,3 +208,166 @@ export function deleteAchievementFile(fileName) {
     throw error;
   });
 }
+
+// 获取下载历史记录（新API）
+export function getDownloadHistory(params) {
+  console.log('【api】获取下载历史，参数：', params);
+  
+  return request({
+    url: '/api/achievement/download/history',
+    method: 'get',
+    params
+  }).then(response => {
+    console.log('【api】下载历史获取成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】下载历史获取失败：', error);
+    throw error;
+  });
+}
+
+// 获取下载统计信息
+export function getDownloadStatistics() {
+  console.log('【api】获取下载统计信息');
+  
+  return request({
+    url: '/api/achievement/download/statistics',
+    method: 'get'
+  }).then(response => {
+    console.log('【api】下载统计信息获取成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】下载统计信息获取失败：', error);
+    throw error;
+  });
+}
+
+// 检查下载权限
+export function checkDownloadPermission(achievementId) {
+  console.log('【api】检查下载权限，成果ID：', achievementId);
+  
+  return request({
+    url: `/api/achievement/download/check-permission/${achievementId}`,
+    method: 'get'
+  }).then(response => {
+    console.log('【api】下载权限检查成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】下载权限检查失败：', error);
+    throw error;
+  });
+}
+
+// 批量下载
+export function batchDownload(achievementIds) {
+  console.log('【api】批量下载，成果ID数组：', achievementIds);
+  
+  return request({
+    url: '/api/achievement/download/batch-download',
+    method: 'post',
+    data: achievementIds
+  }).then(response => {
+    console.log('【api】批量下载任务创建成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】批量下载任务创建失败：', error);
+    throw error;
+  });
+}
+
+// 获取批量下载任务状态
+export function getBatchDownloadStatus(taskId) {
+  console.log('【api】获取批量下载任务状态，任务ID：', taskId);
+  
+  return request({
+    url: `/api/achievement/download/download-task/${taskId}`,
+    method: 'get'
+  }).then(response => {
+    console.log('【api】批量下载任务状态获取成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】批量下载任务状态获取失败：', error);
+    throw error;
+  });
+}
+
+// 获取热门下载成果
+export function getPopularDownloads(params) {
+  console.log('【api】获取热门下载成果，参数：', params);
+  
+  return request({
+    url: '/api/achievement/download/popular',
+    method: 'get',
+    params
+  }).then(response => {
+    console.log('【api】热门下载成果获取成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】热门下载成果获取失败：', error);
+    throw error;
+  });
+}
+
+// 暂停下载
+export function pauseDownload(downloadId) {
+  console.log('【api】暂停下载，记录ID：', downloadId);
+  
+  return request({
+    url: `/api/achievement/download/pause/${downloadId}`,
+    method: 'post'
+  }).then(response => {
+    console.log('【api】下载暂停成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】下载暂停失败：', error);
+    throw error;
+  });
+}
+
+// 继续下载
+export function resumeDownload(downloadId) {
+  console.log('【api】继续下载，记录ID：', downloadId);
+  
+  return request({
+    url: `/api/achievement/download/resume/${downloadId}`,
+    method: 'post'
+  }).then(response => {
+    console.log('【api】下载继续成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】下载继续失败：', error);
+    throw error;
+  });
+}
+
+// 重试下载
+export function retryDownload(downloadId) {
+  console.log('【api】重试下载，记录ID：', downloadId);
+  
+  return request({
+    url: `/api/achievement/download/retry/${downloadId}`,
+    method: 'post'
+  }).then(response => {
+    console.log('【api】下载重试成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】下载重试失败：', error);
+    throw error;
+  });
+}
+
+// 删除下载记录
+export function deleteDownloadRecord(downloadId) {
+  console.log('【api】删除下载记录，记录ID：', downloadId);
+  
+  return request({
+    url: `/api/achievement/download/delete/${downloadId}`,
+    method: 'delete'
+  }).then(response => {
+    console.log('【api】下载记录删除成功：', response);
+    return response;
+  }).catch(error => {
+    console.error('【api】下载记录删除失败：', error);
+    throw error;
+  });
+}

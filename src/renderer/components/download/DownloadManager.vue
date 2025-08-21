@@ -1,463 +1,639 @@
 <template>
-  <div class="download-manager" :class="{ 'minimized': isMinimized }">
-    <div class="download-header">
-      <div class="title">下载管理</div>
-      <div class="actions">
-        <button class="action-btn" @click="toggleMinimize">
-          <i :class="isMinimized ? 'fas fa-expand' : 'fas fa-compress'"></i>
-        </button>
-        <button class="action-btn" @click="closeManager">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-    </div>
-    
-    <div class="download-content" v-if="!isMinimized">
-      <div class="download-controls">
-        <button class="control-btn" @click="resumeAll">
-          <i class="fas fa-play"></i> 全部开始
-        </button>
-        <button class="control-btn" @click="pauseAll">
-          <i class="fas fa-pause"></i> 全部暂停
-        </button>
-        <button class="control-btn" @click="clearCompleted">
-          <i class="fas fa-trash"></i> 清除已完成
-        </button>
-      </div>
-      
-      <div class="download-list">
-        <div v-if="downloads.length === 0" class="empty-downloads">
-          <i class="fas fa-download"></i>
-          <p>暂无下载任务</p>
-        </div>
-        
-        <div v-for="(item, index) in downloads" :key="index" class="download-item">
-          <div class="file-info">
-            <div class="file-type-icon">
-              <i :class="getFileTypeIcon(item.filename)"></i>
-            </div>
-            <div class="file-details">
-              <div class="filename">{{ item.filename }}</div>
-              <div class="file-meta">
-                <span class="file-size">{{ formatFileSize(item.totalBytes) }}</span>
-                <span class="download-speed" v-if="item.state === 'progressing'">
-                  {{ formatSpeed(item.speed) }}
-                </span>
-                <span class="status-text">{{ getStatusText(item) }}</span>
+  <div class="download-manager-container">
+    <!-- 页面标题 -->
+    <el-page-header title="下载管理" @back="goBack" />
+
+    <!-- 统计卡片 -->
+    <div class="statistics-container">
+      <el-row :gutter="20">
+        <el-col :span="6">
+          <el-card class="stat-card" shadow="hover">
+            <div class="stat-content">
+              <div class="stat-icon" style="color: #409EFF;">
+                <el-icon><Download /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statistics.totalDownloads }}</div>
+                <div class="stat-label">总下载量</div>
               </div>
             </div>
-          </div>
-          
-          <div class="progress-container">
-            <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: `${item.percent}%` }"></div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card class="stat-card" shadow="hover">
+            <div class="stat-content">
+              <div class="stat-icon" style="color: #67C23A;">
+                <el-icon><CircleCheck /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statistics.completedDownloads }}</div>
+                <div class="stat-label">已完成</div>
+              </div>
             </div>
-            <div class="progress-text">{{ item.percent.toFixed(1) }}%</div>
-          </div>
-          
-          <div class="item-actions">
-            <button v-if="item.state === 'progressing'" class="item-btn pause" @click="pauseDownload(item)">
-              <i class="fas fa-pause"></i>
-            </button>
-            <button v-if="item.state === 'interrupted'" class="item-btn resume" @click="resumeDownload(item)">
-              <i class="fas fa-play"></i>
-            </button>
-            <button class="item-btn delete" @click="removeDownload(item)">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card class="stat-card" shadow="hover">
+            <div class="stat-content">
+              <div class="stat-icon" style="color: #E6A23C;">
+                <el-icon><Loading /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statistics.activeDownloads }}</div>
+                <div class="stat-label">进行中</div>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card class="stat-card" shadow="hover">
+            <div class="stat-content">
+              <div class="stat-icon" style="color: #F56C6C;">
+                <el-icon><CircleClose /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statistics.failedDownloads }}</div>
+                <div class="stat-label">失败</div>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
+
+    <!-- 操作栏 -->
+    <div class="operation-bar">
+      <el-row :gutter="20">
+        <el-col :span="8">
+          <el-input
+            v-model="searchForm.achievementName"
+            placeholder="搜索成果名称"
+            clearable
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          />
+        </el-col>
+        <el-col :span="4">
+          <el-select
+            v-model="searchForm.status"
+            placeholder="下载状态"
+            clearable
+            @change="handleSearch"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="进行中" value="in_progress" />
+            <el-option label="已完成" value="completed" />
+            <el-option label="失败" value="failed" />
+            <el-option label="已暂停" value="paused" />
+          </el-select>
+        </el-col>
+        <el-col :span="6">
+          <el-date-picker
+            v-model="searchForm.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            @change="handleSearch"
+          />
+        </el-col>
+        <el-col :span="6">
+          <el-button type="primary" @click="handleSearch">
+            <el-icon><Search /></el-icon>
+            搜索
+          </el-button>
+          <el-button @click="resetSearch">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
+        </el-col>
+      </el-row>
+    </div>
+
+    <!-- 下载列表 -->
+    <el-card shadow="never">
+      <el-table
+        :data="downloadList"
+        v-loading="loading"
+        style="width: 100%"
+      >
+        <el-table-column label="成果信息" min-width="250">
+          <template #default="{ row }">
+            <div class="achievement-info">
+              <div class="achievement-name">{{ row.achievementName }}</div>
+              <div class="achievement-meta">
+                <el-tag size="small" :type="getCategoryType(row.achievementCategory)">
+                  {{ getCategoryLabel(row.achievementCategory) }}
+                </el-tag>
+                <span class="achievement-author">{{ row.userName }}</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="文件信息" width="200">
+          <template #default="{ row }">
+            <div class="file-info">
+              <div>{{ row.fileName }}</div>
+              <div class="file-size">{{ formatFileSize(row.fileSize) }}</div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="下载进度" width="200">
+          <template #default="{ row }">
+            <div class="download-progress">
+              <el-progress
+                :percentage="row.progress"
+                :status="getProgressStatus(row.status)"
+                :stroke-width="6"
+              />
+              <div class="progress-text">{{ getProgressText(row) }}</div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="下载时间" width="160">
+          <template #default="{ row }">
+            <div>{{ formatDateTime(row.downloadTime) }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <div class="action-buttons">
+              <el-button
+                v-if="row.status === 'in_progress'"
+                size="small"
+                @click="pauseDownload(row)"
+              >
+                暂停
+              </el-button>
+              <el-button
+                v-if="row.status === 'paused'"
+                size="small"
+                type="primary"
+                @click="resumeDownload(row)"
+              >
+                继续
+              </el-button>
+              <el-button
+                v-if="row.status === 'failed'"
+                size="small"
+                type="warning"
+                @click="retryDownload(row)"
+              >
+                重试
+              </el-button>
+              <el-button
+                v-if="row.status === 'completed'"
+                size="small"
+                type="success"
+                @click="openFile(row)"
+              >
+                打开
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="deleteDownload(row)"
+              >
+                删除
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 分页 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="pagination.currentPage"
+          v-model:page-size="pagination.pageSize"
+          :total="pagination.total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
       </div>
-    </div>
-    
-    <div v-if="isMinimized" class="minimized-info">
-      <span v-if="activeDownloads > 0">{{ activeDownloads }}个下载中</span>
-      <span v-else>无下载任务</span>
-    </div>
+    </el-card>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { ipcRenderer } from 'electron';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { useRouter } from 'vue-router';
+import {
+  getDownloadHistory,
+  getDownloadStatistics,
+  deleteDownloadRecord,
+  retryDownload,
+  pauseDownload as pauseDownloadApi,
+  resumeDownload as resumeDownloadApi,
+  downloadAchievementFile
+} from '@renderer/api/download';
 
-const isMinimized = ref(false);
-const isVisible = ref(false);
-const downloads = ref([]);
+const router = useRouter();
 
-// 计算活跃下载数量
-const activeDownloads = computed(() => {
-  return downloads.value.filter(item => item.state === 'progressing').length;
+// 数据定义
+const downloadList = ref([]);
+const statistics = ref({
+  totalDownloads: 0,
+  completedDownloads: 0,
+  activeDownloads: 0,
+  failedDownloads: 0
+});
+const loading = ref(false);
+
+// 搜索表单
+const searchForm = ref({
+  achievementName: '',
+  status: '',
+  dateRange: []
 });
 
-// 切换最小化状态
-const toggleMinimize = () => {
-  isMinimized.value = !isMinimized.value;
+// 分页
+const pagination = ref({
+  currentPage: 1,
+  pageSize: 10,
+  total: 0
+});
+
+// 计算属性
+const filteredDownloads = computed(() => {
+  let filtered = [...downloadList.value];
+  
+  if (searchForm.value.achievementName) {
+    filtered = filtered.filter(item => 
+      item.achievementName.toLowerCase().includes(searchForm.value.achievementName.toLowerCase())
+    );
+  }
+  
+  if (searchForm.value.status) {
+    filtered = filtered.filter(item => item.status === searchForm.value.status);
+  }
+  
+  if (searchForm.value.dateRange && searchForm.value.dateRange.length === 2) {
+    const [startDate, endDate] = searchForm.value.dateRange;
+    filtered = filtered.filter(item => {
+      const downloadTime = new Date(item.downloadTime);
+      return downloadTime >= startDate && downloadTime <= endDate;
+    });
+  }
+  
+  return filtered;
+});
+
+// 获取类别标签类型
+const getCategoryType = (category) => {
+  const typeMap = {
+    'paper': 'primary',
+    'technical_report': 'success',
+    'patent': 'warning',
+    'software_copyright': 'info',
+    'dataset': 'danger',
+    'other': ''
+  };
+  return typeMap[category] || '';
 };
 
-// 关闭下载管理器
-const closeManager = () => {
-  isVisible.value = false;
-  // 发送事件通知父组件
-  emitter.emit('download-manager-closed');
-};
-
-// 暂停所有下载
-const pauseAll = () => {
-  ipcRenderer.send('download-pause-all');
-};
-
-// 恢复所有下载
-const resumeAll = () => {
-  ipcRenderer.send('download-resume-all');
-};
-
-// 清除已完成的下载
-const clearCompleted = () => {
-  ipcRenderer.send('download-clear-completed');
-};
-
-// 暂停单个下载
-const pauseDownload = (item) => {
-  ipcRenderer.send('download-pause', item.id);
-};
-
-// 恢复单个下载
-const resumeDownload = (item) => {
-  ipcRenderer.send('download-resume', item.id);
-};
-
-// 移除单个下载
-const removeDownload = (item) => {
-  ipcRenderer.send('download-remove', item.id);
+// 获取类别显示标签
+const getCategoryLabel = (category) => {
+  const labelMap = {
+    'paper': '学术论文',
+    'technical_report': '技术报告',
+    'patent': '专利',
+    'software_copyright': '软件著作权',
+    'dataset': '数据集',
+    'other': '其他'
+  };
+  return labelMap[category] || category;
 };
 
 // 格式化文件大小
 const formatFileSize = (bytes) => {
   if (!bytes || bytes === 0) return '0 B';
-  
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
 };
 
-// 格式化下载速度
-const formatSpeed = (bytesPerSecond) => {
-  if (!bytesPerSecond) return '0 KB/s';
-  
-  if (bytesPerSecond < 1024) {
-    return bytesPerSecond.toFixed(2) + ' B/s';
-  } else if (bytesPerSecond < 1024 * 1024) {
-    return (bytesPerSecond / 1024).toFixed(2) + ' KB/s';
+// 获取进度状态
+const getProgressStatus = (status) => {
+  switch (status) {
+    case 'completed':
+      return 'success';
+    case 'failed':
+      return 'exception';
+    case 'in_progress':
+      return '';
+    default:
+      return '';
+  }
+};
+
+// 获取进度文本
+const getProgressText = (row) => {
+  if (row.status === 'in_progress') {
+    return `${row.progress}%`;
+  } else if (row.status === 'completed') {
+    return '已完成';
+  } else if (row.status === 'failed') {
+    return '失败';
   } else {
-    return (bytesPerSecond / (1024 * 1024)).toFixed(2) + ' MB/s';
+    return row.progress + '%';
   }
 };
 
-// 获取文件类型图标
-const getFileTypeIcon = (filename) => {
-  const extension = filename.split('.').pop().toLowerCase();
-  
-  const iconMap = {
-    'pdf': 'fas fa-file-pdf',
-    'doc': 'fas fa-file-word',
-    'docx': 'fas fa-file-word',
-    'xls': 'fas fa-file-excel',
-    'xlsx': 'fas fa-file-excel',
-    'ppt': 'fas fa-file-powerpoint',
-    'pptx': 'fas fa-file-powerpoint',
-    'zip': 'fas fa-file-archive',
-    'rar': 'fas fa-file-archive',
-    'jpg': 'fas fa-file-image',
-    'jpeg': 'fas fa-file-image',
-    'png': 'fas fa-file-image',
-    'mp4': 'fas fa-file-video',
-    'mp3': 'fas fa-file-audio',
-    'exe': 'fas fa-file-code',
-    'txt': 'fas fa-file-alt'
+// 获取状态标签类型
+const getStatusType = (status) => {
+  const typeMap = {
+    'in_progress': 'primary',
+    'completed': 'success',
+    'failed': 'danger',
+    'paused': 'warning'
   };
-  
-  return iconMap[extension] || 'fas fa-file';
+  return typeMap[status] || 'info';
 };
 
-// 获取状态文本
-const getStatusText = (item) => {
-  const stateMap = {
-    'progressing': '下载中',
+// 获取状态标签文本
+const getStatusLabel = (status) => {
+  const labelMap = {
+    'in_progress': '进行中',
     'completed': '已完成',
-    'cancelled': '已取消',
-    'interrupted': '已暂停',
-    'failed': '下载失败'
+    'failed': '失败',
+    'paused': '已暂停'
   };
-  
-  return stateMap[item.state] || '未知状态';
+  return labelMap[status] || status;
 };
 
-// 监听下载更新事件
-onMounted(() => {
-  ipcRenderer.on('download-updated', (event, downloadItems) => {
-    downloads.value = downloadItems;
-  });
-  
-  // 初始获取下载列表
-  ipcRenderer.send('get-downloads');
-});
+// 格式化日期时间
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '';
+  return new Date(dateTime).toLocaleString('zh-CN');
+};
 
-// 组件销毁前移除事件监听
-onBeforeUnmount(() => {
-  ipcRenderer.removeAllListeners('download-updated');
-});
+// 返回上一页
+const goBack = () => {
+  router.push('/home');
+};
 
-// 暴露方法给父组件
-defineExpose({
-  isVisible,
-  toggleVisibility: () => {
-    isVisible.value = !isVisible.value;
-  },
-  show: () => {
-    isVisible.value = true;
-  },
-  hide: () => {
-    isVisible.value = false;
+// 加载下载列表
+const loadDownloadList = async () => {
+  loading.value = true;
+  try {
+    const params = {
+      pageNum: pagination.value.currentPage,
+      pageSize: pagination.value.pageSize,
+      ...searchForm.value
+    };
+    
+    if (searchForm.value.dateRange && searchForm.value.dateRange.length === 2) {
+      params.startDate = searchForm.value.dateRange[0];
+      params.endDate = searchForm.value.dateRange[1];
+    }
+    
+    const response = await getDownloadHistory(params);
+    if (response.data.code === 200) {
+      downloadList.value = response.data.data.list || [];
+      pagination.value.total = response.data.data.total || 0;
+    }
+  } catch (error) {
+    console.error('加载下载列表失败:', error);
+    ElMessage.error('加载失败，请稍后重试');
+  } finally {
+    loading.value = false;
   }
+};
+
+// 加载统计数据
+const loadStatistics = async () => {
+  try {
+    const response = await getDownloadStatistics();
+    if (response.data.code === 200) {
+      statistics.value = response.data.data;
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error);
+  }
+};
+
+// 搜索
+const handleSearch = () => {
+  pagination.value.currentPage = 1;
+  loadDownloadList();
+};
+
+// 重置搜索
+const resetSearch = () => {
+  searchForm.value.achievementName = '';
+  searchForm.value.status = '';
+  searchForm.value.dateRange = [];
+  handleSearch();
+};
+
+// 分页处理
+const handleSizeChange = (val) => {
+  pagination.value.pageSize = val;
+  loadDownloadList();
+};
+
+const handleCurrentChange = (val) => {
+  pagination.value.currentPage = val;
+  loadDownloadList();
+};
+
+// 暂停下载
+const pauseDownload = async (row) => {
+  try {
+    const response = await pauseDownloadApi(row.downloadId);
+    if (response.data.code === 200) {
+      ElMessage.success('下载已暂停');
+      loadDownloadList();
+    } else {
+      ElMessage.error(response.data.message || '暂停失败');
+    }
+  } catch (error) {
+    console.error('暂停下载失败:', error);
+    ElMessage.error('暂停失败，请稍后重试');
+  }
+};
+
+// 继续下载
+const resumeDownload = async (row) => {
+  try {
+    const response = await resumeDownloadApi(row.downloadId);
+    if (response.data.code === 200) {
+      ElMessage.success('下载已继续');
+      loadDownloadList();
+    } else {
+      ElMessage.error(response.data.message || '继续失败');
+    }
+  } catch (error) {
+    console.error('继续下载失败:', error);
+    ElMessage.error('继续失败，请稍后重试');
+  }
+};
+
+// 重试下载
+const retryDownload = async (row) => {
+  try {
+    const response = await retryDownload(row.downloadId);
+    if (response.data.code === 200) {
+      ElMessage.success('下载已重试');
+      loadDownloadList();
+    } else {
+      ElMessage.error(response.data.message || '重试失败');
+    }
+  } catch (error) {
+    console.error('重试下载失败:', error);
+    ElMessage.error('重试失败，请稍后重试');
+  }
+};
+
+// 打开文件
+const openFile = (row) => {
+  if (row.filePath) {
+    window.electronAPI.openFile(row.filePath);
+  } else {
+    ElMessage.warning('文件路径不存在');
+  }
+};
+
+// 删除下载记录
+const deleteDownload = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除 "${row.achievementName}" 的下载记录吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+    
+    const response = await deleteDownloadRecord(row.downloadId);
+    if (response.data.code === 200) {
+      ElMessage.success('删除成功');
+      loadDownloadList();
+      loadStatistics();
+    } else {
+      ElMessage.error(response.data.message || '删除失败');
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除下载记录失败:', error);
+      ElMessage.error('删除失败，请稍后重试');
+    }
+  }
+};
+
+// 生命周期
+onMounted(() => {
+  loadDownloadList();
+  loadStatistics();
 });
 </script>
 
 <style scoped>
-.download-manager {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  width: 400px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
+.download-manager-container {
+  padding: 20px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
 }
 
-.download-manager.minimized {
-  width: 200px;
-  height: auto;
+.statistics-container {
+  margin-bottom: 20px;
 }
 
-.download-header {
+.stat-card {
+  height: 100%;
+}
+
+.stat-content {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #4a90e2;
-  color: white;
-  cursor: move;
 }
 
-.title {
-  font-weight: 600;
-  font-size: 16px;
+.stat-icon {
+  font-size: 48px;
+  color: #409EFF;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #303133;
 }
 
-.action-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background 0.2s;
+.stat-label {
+  font-size: 14px;
+  color: #909399;
 }
 
-.action-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+.operation-bar {
+  margin-bottom: 20px;
 }
 
-.download-content {
-  flex: 1;
-  overflow-y: auto;
-  max-height: calc(80vh - 48px);
-}
-
-.download-controls {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #eee;
-}
-
-.control-btn {
-  padding: 6px 12px;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-}
-
-.control-btn:hover {
-  background: #e9e9e9;
-}
-
-.download-list {
-  padding: 8px 0;
-}
-
-.empty-downloads {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 0;
-  color: #999;
-}
-
-.empty-downloads i {
-  font-size: 32px;
-  margin-bottom: 12px;
-}
-
-.download-item {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.download-item:last-child {
-  border-bottom: none;
+.achievement-info {
+  .achievement-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .achievement-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #909399;
+    
+    .achievement-author {
+      margin-left: 10px;
+    }
+  }
 }
 
 .file-info {
+  .file-size {
+    font-size: 12px;
+    color: #909399;
+  }
+}
+
+.download-progress {
+  .progress-text {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 5px;
+  }
+}
+
+.action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 5px;
 }
 
-.file-type-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #666;
-  font-size: 20px;
-}
-
-.file-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.filename {
-  font-weight: 500;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.file-meta {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: #666;
-}
-
-.progress-container {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 6px;
-  background: #eee;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #4a90e2;
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  font-size: 12px;
-  color: #666;
-  width: 45px;
+.pagination-container {
+  margin-top: 20px;
   text-align: right;
 }
 
-.item-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 4px;
+:deep(.el-table) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.item-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.item-btn:hover {
-  background: #f5f5f5;
-}
-
-.item-btn.pause:hover {
-  color: #f0ad4e;
-  border-color: #f0ad4e;
-}
-
-.item-btn.resume:hover {
-  color: #5cb85c;
-  border-color: #5cb85c;
-}
-
-.item-btn.delete:hover {
-  color: #d9534f;
-  border-color: #d9534f;
-}
-
-.minimized-info {
-  padding: 8px 16px;
-  font-size: 13px;
-  color: #666;
-  text-align: center;
-}
-
-/* 添加拖动功能的样式 */
-.download-header {
-  -webkit-app-region: drag;
-}
-
-.download-header .actions {
-  -webkit-app-region: no-drag;
+:deep(.el-card) {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 </style> 

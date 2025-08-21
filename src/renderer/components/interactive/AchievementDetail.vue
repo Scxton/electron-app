@@ -87,66 +87,11 @@
 
           <!-- 使用 v-show 控制内容显示 -->
           <div v-show="!isReviewsCollapsed">
-            <div class="rating-summary" v-if="achievement.reviewCount > 0">
-              <div class="average-rating">
-                <span class="rating-value">{{ achievement.rating.toFixed(1) }}</span>
-                <el-rate v-model="achievement.rating" disabled show-score />
-              </div>
-              <div class="review-count">
-                共 {{ achievement.reviewCount }} 条评价
-              </div>
-            </div>
-            
-            <div class="rating-form">
-              <h3>{{ isEditingReview ? '修改评价' : '发表评价' }}</h3>
-              <div class="rating-stars">
-                <el-rate v-model="newReview.rating" show-score />
-              </div>
-              <el-input
-                type="textarea"
-                v-model="newReview.content"
-                :placeholder="isEditingReview ? '修改您的评价' : '写下您的评价'"
-                :rows="3"
-              />
-              <el-button type="primary" @click="submitReview">
-                <i class="el-icon-edit"></i> {{ isEditingReview ? '更新评价' : '发布评价' }}
-              </el-button>
-            </div>
-            
-            <!-- 评价列表 -->
-            <div class="reviews-list">
-              <div v-if="topReviews.length === 0" class="empty-reviews">
-                暂无评价，成为第一个评价的用户吧！
-              </div>
-              <div v-for="review in topReviews" :key="review.id" class="review-item">
-                <div class="review-header">
-                  <span class="user-name">{{ review.userName }}</span>
-                  <el-rate v-model="review.rating" disabled />
-                </div>
-                <p class="review-content">{{ review.content }}</p>
-                <div class="review-footer">
-                  <span class="review-date">{{ review.date }}</span>
-                  <span class="likes">
-                    <el-button type="text" @click="likeReview(review.id)">
-                      <i class="el-icon-thumb"></i> {{ review.likes }}
-                    </el-button>
-                  </span>
-                </div>
-              </div>
-              
-              <!-- 添加分页组件 -->
-              <div class="pagination-container" v-if="total > 0">
-                <el-pagination
-                  v-model:current-page="currentPage"
-                  v-model:page-size="pageSize"
-                  :page-sizes="[5, 10, 20, 50]"
-                  :total="total"
-                  layout="total, sizes, prev, pager, next"
-                  @size-change="handleSizeChange"
-                  @current-change="handlePageChange"
-                />
-              </div>
-            </div>
+            <AchievementEvaluation
+              :achievement-id="achievement.id"
+              :current-user-id="currentUserId"
+              :can-evaluate="canEvaluate"
+            />
           </div>
         </div>
 
@@ -353,6 +298,7 @@ import { submitDownloadForm, downloadAchievements } from '../../api/download';
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import AchievementEvaluation from '../evaluation/AchievementEvaluation.vue';
 // 导入交互评价相关API
 import { 
   queryEvaluationsByAchievementId, 
@@ -382,6 +328,7 @@ defineEmits(['back'])
 
 // 成果数据
 const achievement = ref({
+  id: null,
   title: '',
   category: '',
   organization: '',
@@ -390,6 +337,16 @@ const achievement = ref({
   rating: 0,
   reviewCount: 0,
   description: ''
+})
+
+// 当前用户ID和权限
+const currentUserId = computed(() => {
+  return parseInt(localStorage.getItem('userId') || '1')
+})
+
+const canEvaluate = computed(() => {
+  // 检查用户是否已登录且有权限评价
+  return localStorage.getItem('userId') != null
 })
 
 // 评价数据
@@ -604,6 +561,7 @@ const fetchData = async () => {
       
       // 映射数据到组件需要的格式
       achievement.value = {
+        id: parsedData.achievementId || parsedData.id,
         title: parsedData.title || '',
         category: parsedData.type || '',
         organization: 'cetc32',
